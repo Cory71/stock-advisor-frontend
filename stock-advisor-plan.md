@@ -1,0 +1,213 @@
+# StockGrader — Capstone Project Plan
+
+> Repo name: `stock-advisor-app`. User-facing product name: **StockGrader**.
+
+## 1. Project Overview
+
+A web application that grades publicly traded stocks on an **A–F scale** based on five fundamental financial criteria sourced from Yahoo Finance. The user enters a ticker symbol (e.g. `AAPL`), the app fetches the relevant financial data, evaluates the five criteria, and returns a clear letter grade with the underlying yes/no answers and supporting numbers.
+
+The goal is to give a non-expert investor a fast, opinionated, easy-to-read read on a stock's fundamental health without having to interpret financial statements themselves.
+
+## 2. Problem & Target Audience
+
+- **Problem:** Retail investors are flooded with noisy data on Yahoo Finance, but most don't know which numbers actually matter or how to combine them into a decision.
+- **Target audience:** Beginner-to-intermediate retail investors who want a quick "is this stock fundamentally healthy?" check before researching further.
+- **Value:** Reduces 5 different financial-statement questions into one letter grade plus a transparent breakdown.
+
+## 3. The Grading Algorithm
+
+All five criteria map directly to columns/rows on the Yahoo Finance income statement and cash flow statement pages (e.g. `finance.yahoo.com/quote/AAPL/cash-flow`), so the app's job is to read the same numbers a human user would and apply the rules below.
+
+### 3.1 The five criteria (each is a yes/no)
+
+1. **Topline revenue growth (long-term):** Is the **latest** annual revenue greater than the **earliest** annual revenue available? (income statement, annual columns)
+2. **Recent revenue growth (TTM):** Is the **TTM** revenue column higher than the most recent full fiscal year? (income statement, TTM vs latest annual column)
+3. **Net positive free cash flow:** Is the most recent **Free Cash Flow** value positive? (cash flow statement, "Free Cash Flow" row, latest column)
+4. **Free cash flow growth (long-term):** Is the **latest** annual Free Cash Flow greater than the **earliest** annual Free Cash Flow available?
+5. **Recent free cash flow growth (last year):** Is the **TTM** Free Cash Flow column higher than the most recent full fiscal year?
+
+**"Growth" rule (criteria 1 and 4):** "latest annual > earliest annual" over the years Yahoo provides. We chose this over strict every-year-up because it still rewards companies that had a single down year (e.g. Apple's 2018→2019 free cash flow dip) without giving them a free pass on their overall direction.
+
+### 3.2 Score → grade mapping
+
+| Yes count | Grade |
+| --------- | ----- |
+| 5         | A     |
+| 4         | B     |
+| 3         | C     |
+| 2         | D     |
+| 0–1       | F     |
+
+### 3.3 Output for the user
+
+For every graded stock the UI shows:
+
+- The letter grade (large, color-coded).
+- All five criteria as a checklist with ✓ / ✗.
+- The actual numbers used for each check (so the user can verify and learn).
+- The data source / "as of" date.
+
+## 4. Core Features (MVP)
+
+- **User accounts:** Email/password sign-up and login. All history and watchlists are scoped per-user.
+- **Ticker lookup:** Enter a symbol, get a graded result.
+- **Grade card:** Letter grade + 5-criteria breakdown + raw numbers.
+- **Saved watchlist:** Add a ticker to a personal watchlist; revisit grades without re-typing.
+- **Recent searches / history:** Last N tickers the user looked up (per user, stored in MongoDB).
+- **Comparison view:** Look up 2–3 tickers side-by-side.
+- **Responsive UI:** Works on desktop and mobile browsers.
+
+## 5. Stretch Features (post-MVP)
+
+- Watchlist auto-refresh / re-grade on a schedule.
+- Charts of revenue and cash flow trends.
+- Export a graded report as PDF.
+- "Why this grade?" plain-English explanation generated from the criteria.
+- Sector-relative grading.
+- Email alerts when a watchlist ticker's grade changes.
+
+## 6. Technology Stack
+
+Per the capstone requirements (React, Node.js, Express, MongoDB):
+
+- **Frontend:** React (Vite), React Router, plain CSS or Tailwind, fetch/axios for API calls.
+- **State management:** React Context + hooks — no Redux/Zustand. An `AuthContext` holds the current user and login/logout helpers; per-page server data (grades, watchlist, history) is fetched on mount and held in local component state. Form inputs use `useState`. The persistent cache lives server-side in MongoDB, so the browser doesn't need a global store for it.
+- **Backend:** Node.js + Express REST API.
+- **Database:** MongoDB (via Mongoose) — stores users, cached stock data, per-user search history, and per-user watchlists.
+- **Auth:** Email + password with bcrypt for hashing and JWT (stored in an httpOnly cookie) for sessions.
+- **Data source:** Yahoo Finance via the [`yahoo-finance2`](https://www.npmjs.com/package/yahoo-finance2) npm package (unofficial but well-maintained — ~100k weekly downloads, active maintainers, ~13 years of community track record between it and its predecessor). Free, no API key, works for any US ticker.
+- **Provider abstraction:** All Yahoo calls live behind a thin `StockDataProvider` interface (one method for the income statement, one for the cash flow statement). The grading logic depends on the interface, not on Yahoo. If `yahoo-finance2` ever breaks unannounced, we can swap to Financial Modeling Prep ($22/mo Starter tier as the realistic paid fallback) by writing one new provider class — no changes to the grader, routes, or UI.
+- **Testing:** Jest + React Testing Library (frontend), Jest + Supertest (backend).
+- **Deployment:** Frontend on Vercel or Netlify; backend on Render or Railway; MongoDB Atlas for the DB.
+
+## 7. Architecture & Data Flow
+
+```text
+[ React UI ]  --HTTP-->  [ Express API ]  --[ StockDataProvider ]--> [ yahoo-finance2 ] --> [ Yahoo Finance ]
+       |                       |                  (interface;
+       |                       |                   FMP swap-in
+       |                       |                   if needed)
+       |                       +--Mongoose-->  [ MongoDB Atlas ]
+       |                                          (cache + history)
+       +--reads grade JSON, renders grade card
+```
+
+Frontend state layout:
+
+- **`AuthContext`** (provided at the app root, consumed via a `useAuth()` hook) — current user object, `login()`, `logout()`, and a "loading" flag while the initial `/api/auth/me` call resolves on app load.
+- **Per-page server data** (grade results, watchlist, history) — fetched on mount with `useEffect`, stored in local component state, re-fetched on user action. No global cache in the browser; the canonical cache is in MongoDB.
+- **Form state** (ticker search input, login/signup forms) — local `useState` inside the form component.
+
+Request flow for a grade lookup:
+
+1. User submits ticker in the React UI.
+2. Frontend calls `GET /api/grade/:ticker`.
+3. Backend checks MongoDB for a recent cached result (e.g. < 24h old).
+4. If miss, fetch income statement + cash flow statement from Yahoo Finance.
+5. Run the grading function over the data → produce 5 booleans + numbers + letter grade.
+6. Persist the result in MongoDB and return JSON to the frontend.
+
+## 8. Data Model (MongoDB)
+
+- **`users`** — accounts
+  - `email` (unique, indexed)
+  - `passwordHash` (bcrypt)
+  - `createdAt`
+
+- **`stocks`** — shared cache of graded results (not per-user, since the underlying numbers are the same for everyone)
+  - `ticker` (string, unique-indexed)
+  - `grade` (A/B/C/D/F)
+  - `criteria` (array of 5 objects: `{ name, passed, value, prior, source }`)
+  - `rawData` (raw revenue & free cash flow snapshots, including TTM)
+  - `gradedAt` (date)
+
+- **`searchHistory`** — per-user recent lookups
+  - `userId` (indexed)
+  - `ticker`
+  - `searchedAt`
+
+- **`watchlists`** — per-user saved tickers
+  - `userId` (indexed)
+  - `ticker`
+  - `addedAt`
+
+## 9. API Endpoints (initial)
+
+Auth:
+
+- `POST /api/auth/signup` → create account, return session cookie.
+- `POST /api/auth/login` → authenticate, return session cookie.
+- `POST /api/auth/logout` → clear session.
+- `GET /api/auth/me` → current user (used by the frontend on load).
+
+Grading:
+
+- `GET /api/grade/:ticker` → graded result for a ticker (auth required; also records to user's history).
+- `GET /api/compare?tickers=AAPL,MSFT,GOOG` → graded results for multiple tickers.
+
+User data:
+
+- `GET /api/history` → current user's recent lookups.
+- `GET /api/watchlist` → current user's watchlist with grades.
+- `POST /api/watchlist` → add a ticker.
+- `DELETE /api/watchlist/:ticker` → remove a ticker.
+
+## 10. UI Pages / Components
+
+- **Sign-up / Login pages:** email + password forms.
+- **Home / Search page:** ticker input + recent searches (per logged-in user).
+- **Grade detail page:** letter grade, criteria checklist, raw numbers, "graded at" timestamp, "Add to watchlist" button.
+- **Watchlist page:** user's saved tickers with their current grades.
+- **Compare page:** side-by-side grades for 2–3 tickers.
+- **Shared components:** `<GradeBadge />`, `<CriteriaList />`, `<TickerSearch />`, `<Loading />`, `<ErrorBanner />`, `<NavBar />` (with login state).
+
+## 11. Milestones (4-week capstone)
+
+- **Week 1 — Proposal, scaffolding & grading core**
+  - Approve this plan with instructor.
+  - Initialize React frontend + Express backend repos/folders.
+  - Get a single ticker's revenue + free cash flow successfully fetched server-side.
+  - Write the pure grading function with unit tests (no UI yet).
+
+- **Week 2 — Auth, backend & first UI**
+  - User signup/login + JWT cookie auth.
+  - `GET /api/grade/:ticker` end-to-end with MongoDB caching.
+  - Per-user search history.
+  - Home page + grade detail page rendering real data behind login.
+
+- **Week 3 — Watchlist, comparison & polish**
+  - Watchlist endpoints + page.
+  - Compare page.
+  - Responsive styling.
+  - Error states (invalid ticker, Yahoo outage, missing data).
+  - Backend + frontend tests filled out.
+
+- **Week 4 — Deployment & docs**
+  - Deploy frontend, backend, and MongoDB Atlas.
+  - Finalize README (overview, features, install, usage, tech, future work).
+  - Write the devlog entries for all 4 weeks.
+  - Buffer for stretch features (charts, PDF export, alerts).
+
+## 12. Testing Strategy
+
+- **Unit tests** on the grading function — easiest, highest-value tests; cover each criterion + the score→grade mapping including edge cases (missing data, ties, 0 yeses).
+- **API tests** with Supertest for each endpoint, mocking the Yahoo Finance client.
+- **Component tests** with React Testing Library for the grade card and search form.
+- **Manual smoke test** across desktop + mobile browser sizes before deploy.
+
+## 13. Risks & Open Questions
+
+### Decided
+
+- **Cash flow definition:** Free Cash Flow (the "Free Cash Flow" row on Yahoo's cash flow statement).
+- **Zero yeses = F.**
+- **User accounts:** Login is part of the MVP, not stretch.
+- **Growth rule for long-term criteria (1 and 4):** "latest annual > earliest annual" over the available years.
+- **Platform:** Web app (React). The capstone instructions allow React or React Native; we're choosing web for simpler deploy/demo, and the responsive layout will still work on a phone browser.
+- **App name:** **StockGrader**.
+- **Data source:** `yahoo-finance2` (free, any ticker, no API key). Accessed through a `StockDataProvider` interface so a paid fallback (FMP Starter, $22/mo) can be dropped in without touching grading or UI code.
+
+### Ongoing risks
+
+- **Yahoo Finance reliability:** `yahoo-finance2` is unofficial and can break with little notice. We'll handle this with: (a) MongoDB caching so a brief upstream outage doesn't take the app down for previously-graded tickers, (b) a clear "data unavailable for this ticker, try again later" UI state, and (c) the provider abstraction described above as our escape hatch.
+- **Tickers with insufficient history:** Some newer or thinly-reported companies may not have enough annual data for criteria 1 and 4. We'll need a minimum-data threshold (e.g. at least 2 annual columns) and a graceful "not enough history to grade" message.

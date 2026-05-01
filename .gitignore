@@ -1,0 +1,19 @@
+# Claude Code per-machine settings (anything ending in .local.json)
+.claude/settings.local.json
+
+# Node / build outputs (you'll hit these once you scaffold)
+node_modules/
+dist/
+build/
+.vite/
+
+# Environment / secrets
+.env
+.env.local
+.env.*.local
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
