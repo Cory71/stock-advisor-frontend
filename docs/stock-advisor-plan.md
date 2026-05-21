@@ -1,6 +1,6 @@
 # StockGrader — Capstone Project Plan
 
-> Repo name: `stock-advisor-app`. User-facing product name: **StockGrader**.
+> **Repos:** [`stock-advisor-frontend`](https://github.com/Cory71/stock-advisor-frontend) (React + Vite) and [`stock-advisor-backend`](https://github.com/Cory71/stock-advisor-backend) (Express API). User-facing product name: **StockGrader**.
 
 ## 1. Project Overview
 
@@ -30,13 +30,14 @@ All five criteria map directly to columns/rows on the Yahoo Finance income state
 
 ### 3.2 Score → grade mapping
 
-| Yes count | Grade |
-| --------- | ----- |
-| 5         | A     |
-| 4         | B     |
-| 3         | C     |
-| 2         | D     |
-| 0–1       | F     |
+| Yes count | Grade                          |
+| --------- | ------------------------------ |
+| 5         | A                              |
+| 4         | B                              |
+| 3         | C                              |
+| 2         | D                              |
+| 0–1       | F                              |
+| N/A       | N/A (not enough data to grade) |
 
 ### 3.3 Output for the user
 
@@ -49,11 +50,11 @@ For every graded stock the UI shows:
 
 ## 4. Core Features (MVP)
 
-- **User accounts:** Email/password sign-up and login. All history and watchlists are scoped per-user.
+- **User accounts:** Email/password sign-up and login, plus a **"Sign in with Google"** button (Google Identity Services). Both flows produce the same session JWT, so the rest of the app doesn't care how the user signed in. All history and watchlists are scoped per-user.
 - **Ticker lookup:** Enter a symbol, get a graded result.
 - **Grade card:** Letter grade + 5-criteria breakdown + raw numbers.
 - **Saved watchlist:** Add a ticker to a personal watchlist; revisit grades without re-typing.
-- **Recent searches / history:** Last N tickers the user looked up (per user, stored in MongoDB).
+- **Recent searches / history:** Last 20 tickers the user looked up (per user, stored in MongoDB).
 - **Comparison view:** Look up 2–3 tickers side-by-side.
 - **Responsive UI:** Works on desktop and mobile browsers.
 
@@ -70,14 +71,16 @@ For every graded stock the UI shows:
 
 Per the capstone requirements (React, Node.js, Express, MongoDB):
 
-- **Frontend:** React (Vite), React Router, plain CSS or Tailwind, fetch/axios for API calls.
+- **Frontend:** React (Vite), React Router, Bootstrap (via `react-bootstrap`), fetch/axios for API calls.
 - **State management:** React Context + hooks — no Redux/Zustand. An `AuthContext` holds the current user and login/logout helpers; per-page server data (grades, watchlist, history) is fetched on mount and held in local component state. Form inputs use `useState`. The persistent cache lives server-side in MongoDB, so the browser doesn't need a global store for it.
 - **Backend:** Node.js + Express REST API.
 - **Database:** MongoDB (via Mongoose) — stores users, cached stock data, per-user search history, and per-user watchlists.
-- **Auth:** Email + password with bcrypt for hashing and JWT (stored in an httpOnly cookie) for sessions.
+- **Auth:** Two sign-in options that both end in the same session JWT (httpOnly cookie):
+  - **Email + password:** bcrypt for hashing, our own login/signup endpoints.
+  - **Google Sign-In:** the official [Google Identity Services](https://developers.google.com/identity/gsi/web) button on the frontend; the backend verifies the returned Google ID token with [`google-auth-library`](https://www.npmjs.com/package/google-auth-library), then either creates a user (first-time Google login) or finds the existing one, and issues our session JWT.
 - **Data source:** Yahoo Finance via the [`yahoo-finance2`](https://www.npmjs.com/package/yahoo-finance2) npm package (unofficial but well-maintained — ~100k weekly downloads, active maintainers, ~13 years of community track record between it and its predecessor). Free, no API key, works for any US ticker.
 - **Provider abstraction:** All Yahoo calls live behind a thin `StockDataProvider` interface (one method for the income statement, one for the cash flow statement). The grading logic depends on the interface, not on Yahoo. If `yahoo-finance2` ever breaks unannounced, we can swap to Financial Modeling Prep ($22/mo Starter tier as the realistic paid fallback) by writing one new provider class — no changes to the grader, routes, or UI.
-- **Testing:** Jest + React Testing Library (frontend), Jest + Supertest (backend).
+- **Testing:** Jest + React Testing Library (frontend), Mocha + Chai (backend; Supertest for HTTP endpoint tests).
 - **Deployment:** Frontend on Vercel or Netlify; backend on Render or Railway; MongoDB Atlas for the DB.
 
 ## 7. Architecture & Data Flow
@@ -87,9 +90,13 @@ Per the capstone requirements (React, Node.js, Express, MongoDB):
        |                       |                  (interface;
        |                       |                   FMP swap-in
        |                       |                   if needed)
+       |                       |
+       |                       +--verify ID token--> [ Google OAuth ]
+       |                       |
        |                       +--Mongoose-->  [ MongoDB Atlas ]
        |                                          (cache + history)
        +--reads grade JSON, renders grade card
+       +--Google Sign-In button --> [ Google OAuth ] --returns ID token--> backend
 ```
 
 Frontend state layout:
@@ -109,9 +116,11 @@ Request flow for a grade lookup:
 
 ## 8. Data Model (MongoDB)
 
-- **`users`** — accounts
+- **`users`** — accounts (either email/password or Google sign-in, or both linked by email)
   - `email` (unique, indexed)
-  - `passwordHash` (bcrypt)
+  - `passwordHash` (bcrypt) — optional; absent for Google-only accounts
+  - `googleId` (string, sparse-indexed) — optional; present when the user signed in with Google
+  - `displayName` (string) — pulled from Google profile when available
   - `createdAt`
 
 - **`stocks`** — shared cache of graded results (not per-user, since the underlying numbers are the same for everyone)
@@ -135,8 +144,9 @@ Request flow for a grade lookup:
 
 Auth:
 
-- `POST /api/auth/signup` → create account, return session cookie.
-- `POST /api/auth/login` → authenticate, return session cookie.
+- `POST /api/auth/signup` → create email/password account, return session cookie.
+- `POST /api/auth/login` → authenticate email/password, return session cookie.
+- `POST /api/auth/google` → receive a Google ID token from the frontend, verify it with `google-auth-library`, create or find the matching user, return session cookie.
 - `POST /api/auth/logout` → clear session.
 - `GET /api/auth/me` → current user (used by the frontend on load).
 
@@ -154,7 +164,7 @@ User data:
 
 ## 10. UI Pages / Components
 
-- **Sign-up / Login pages:** email + password forms.
+- **Sign-up / Login pages:** email + password form **and** a "Sign in with Google" button rendered by Google Identity Services.
 - **Home / Search page:** ticker input + recent searches (per logged-in user).
 - **Grade detail page:** letter grade, criteria checklist, raw numbers, "graded at" timestamp, "Add to watchlist" button.
 - **Watchlist page:** user's saved tickers with their current grades.
@@ -167,10 +177,11 @@ User data:
   - Approve this plan with instructor.
   - Initialize React frontend + Express backend repos/folders.
   - Get a single ticker's revenue + free cash flow successfully fetched server-side.
-  - Write the pure grading function with unit tests (no UI yet).
+  - Write the pure grading function and its unit tests together (each criterion, score→grade mapping, edge cases, and N/A handling). No UI yet.
 
 - **Week 2 — Auth, backend & first UI**
-  - User signup/login + JWT cookie auth.
+  - User signup/login + JWT cookie auth (email/password path first).
+  - **Google Sign-In:** register an OAuth client in Google Cloud Console, drop the GIS button into the login page, wire up `POST /api/auth/google` on the backend.
   - `GET /api/grade/:ticker` end-to-end with MongoDB caching.
   - Per-user search history.
   - Home page + grade detail page rendering real data behind login.
@@ -190,8 +201,8 @@ User data:
 
 ## 12. Testing Strategy
 
-- **Unit tests** on the grading function — easiest, highest-value tests; cover each criterion + the score→grade mapping including edge cases (missing data, ties, 0 yeses).
-- **API tests** with Supertest for each endpoint, mocking the Yahoo Finance client.
+- **Unit tests** on the grading function (Mocha + Chai) — easiest, highest-value tests; cover each criterion + the score→grade mapping including edge cases (missing data, ties, 0 yeses).
+- **API tests** with Supertest (driven by Mocha) for each endpoint, mocking the Yahoo Finance client.
 - **Component tests** with React Testing Library for the grade card and search form.
 - **Manual smoke test** across desktop + mobile browser sizes before deploy.
 

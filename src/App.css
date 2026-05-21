@@ -1,0 +1,14 @@
+/* Basic centered layout for the placeholder page */
+.app {
+  max-width: 720px;
+  margin: 4rem auto;
+  padding: 0 1.5rem;
+  text-align: center;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.note {
+  color: #6b7280;
+  font-size: 0.9rem;
+  margin-top: 2rem;
+}
