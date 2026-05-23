@@ -171,33 +171,9 @@ User data:
 - **Compare page:** side-by-side grades for 2–3 tickers.
 - **Shared components:** `<GradeBadge />`, `<CriteriaList />`, `<TickerSearch />`, `<Loading />`, `<ErrorBanner />`, `<NavBar />` (with login state).
 
-## 11. Milestones (4-week capstone)
+## 11. Milestones
 
-- **Week 1 — Proposal, scaffolding & grading core**
-  - Approve this plan with instructor.
-  - Initialize React frontend + Express backend repos/folders.
-  - Get a single ticker's revenue + free cash flow successfully fetched server-side.
-  - Write the pure grading function and its unit tests together (each criterion, score→grade mapping, edge cases, and N/A handling). No UI yet.
-
-- **Week 2 — Auth, backend & first UI**
-  - User signup/login + JWT cookie auth (email/password path first).
-  - **Google Sign-In:** register an OAuth client in Google Cloud Console, drop the GIS button into the login page, wire up `POST /api/auth/google` on the backend.
-  - `GET /api/grade/:ticker` end-to-end with MongoDB caching.
-  - Per-user search history.
-  - Home page + grade detail page rendering real data behind login.
-
-- **Week 3 — Watchlist, comparison & polish**
-  - Watchlist endpoints + page.
-  - Compare page.
-  - Responsive styling.
-  - Error states (invalid ticker, Yahoo outage, missing data).
-  - Backend + frontend tests filled out.
-
-- **Week 4 — Deployment & docs**
-  - Deploy frontend, backend, and MongoDB Atlas.
-  - Finalize README (overview, features, install, usage, tech, future work).
-  - Write the devlog entries for all 4 weeks.
-  - Buffer for stretch features (charts, PDF export, alerts).
+See [`classplan.md`](./classplan.md) for the live class-by-class tracker.
 
 ## 12. Testing Strategy
 
