@@ -15,7 +15,7 @@ StockGrader is a web application that grades publicly traded stocks on an A–F 
 
 - **Ticker lookup** — enter a stock symbol (e.g. `AAPL`) and get a graded result instantly
 - **Grade card** — letter grade (A–F), color-coded, plus a 5-criteria checklist with the actual numbers used
-- **User accounts** — email/password sign-up and login, **plus a "Sign in with Google" button** for one-click access; all data is scoped to the logged-in user
+- **User accounts** — email/password sign-up and login, **plus "Sign in with Google"** via Passport OAuth redirect flow; all data is scoped to the logged-in user
 - **Saved watchlist** — add tickers to a personal watchlist and revisit grades without re-typing
 - **Search history** — view the last 20 tickers the user looked up
 - **Comparison view** — look up 2–3 tickers side-by-side on the same screen
@@ -37,7 +37,7 @@ Beginner-to-intermediate retail investors who already browse Yahoo Finance but f
 | Backend | Node.js, Express |
 | Database | MongoDB Atlas (via Mongoose) |
 | External Data | `yahoo-finance2` npm package (free, no API key required) |
-| Authentication | JWT in an httpOnly cookie + bcrypt for email/password; Google Sign-In via Google Identity Services (`google-auth-library` on the backend) |
+| Authentication | Passport.js with two strategies: `passport-local` (email/password with `bcryptjs`) and `passport-google-oauth20` (Google login). Sessions stored in MongoDB via `express-session` + `connect-mongo`. |
 | Deployment | Vercel (frontend), Render (backend) |
 
 **Out of scope for MVP:** social features, stock recommendations, mobile app (React Native), charts, PDF export, email alerts.
