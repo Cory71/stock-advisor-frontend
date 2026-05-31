@@ -15,7 +15,7 @@ I review this after every class, then push so my GitHub history matches the sche
 - [x] Define the project idea — StockGrader (A–F grading from Yahoo Finance fundamentals)
 - [x] List MVP features in [`proposal.md`](./proposal.md) — ticker lookup, grade card, accounts, watchlist, history, compare, responsive UI
 - [x] Identify target audience — beginner-to-intermediate retail investors
-- [x] Choose tech stack — React (Vite) + Bootstrap, Express, MongoDB Atlas, `yahoo-finance2`, Passport (Local + Google OAuth)
+- [x] Choose tech stack — React (Vite) + Bootstrap, Express, MongoDB Atlas, `yahoo-finance2`, JWT auth + Google Identity Services
 - [x] Write cost estimate (free tier, paid tier, at-scale, dev + maintenance) in [`proposal.md`](./proposal.md)
 - [x] Submit for instructor approval
 
@@ -62,84 +62,79 @@ I review this after every class, then push so my GitHub history matches the sche
 **Wire-up + tooling**
 
 - [x] Confirm frontend can call backend `GET /` locally (CORS working) — Home page renders "Backend says: Server is running"
-- [ ] Set up a Postman collection (or Thunder Client) for testing each route as it's built (deferred to Class 4 when there are real routes to test)
+- [x] Set up a Postman collection for testing each route as it's built — lives in Postman Cloud, plus a portable JSON export under `backend/docs/postman/` so reviewers can import it locally
 
 ---
 
 ### Class 4 — Auth, Core Routes & Grading Flow
 
-Goal by end of class: a registered user can sign in (email/password or Google), grade `AAPL`, and add it to their watchlist. This class satisfies the full Week 2 instructor rubric (models, auth, 3+ CRUD routes, route protection, Postman testing).
+Goal by end of class: a complete, tested backend — auth (email/password + JWT), grading flow, and watchlist CRUD — that satisfies the full Week 2 instructor rubric. (Frontend wiring + Google sign-in deliberately deferred — see Class 5 and Stretch Features.)
 
-**Auth — Passport setup**
+**Auth — JWT setup**
 
-- [ ] Install `passport`, `passport-local`, `passport-google-oauth20`, `bcryptjs`, `express-session`, `connect-mongo`
-- [ ] Register an OAuth client in Google Cloud Console; store `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` + `SESSION_SECRET` in `.env`
-- [ ] `middleware/passport.js` — configure `passport-local` + `passport-google-oauth20` strategies + `serializeUser` / `deserializeUser`
-- [ ] Wire `express-session` (with `connect-mongo` store) + `passport.initialize()` + `passport.session()` in `server.js`
-- [ ] `middleware/authMiddleware.js` — `protect` function that calls `req.isAuthenticated()`
+- [x] Install `jsonwebtoken`, `bcryptjs`, `passport`, `passport-jwt`
+- [x] Generate `JWT_SECRET` (64-byte random hex) and store in backend `.env`
+- [x] `middleware/passport.js` — registers the `passport-jwt` strategy: reads `Authorization: Bearer <jwt>`, verifies with `JWT_SECRET`, looks up the user, attaches the Mongoose user doc (minus `passwordHash`) to `req.user`
+- [x] `middleware/authMiddleware.js` — thin wrapper around `passport.authenticate('jwt', { session: false })` that returns a friendly JSON 401 instead of plain text
+- [x] `server.js` — `app.use(passport.initialize())` after JSON middleware
 
 **Auth — routes**
 
-- [ ] `POST /api/auth/register` — bcrypt-hash password, create user, log in via `req.login()`
-- [ ] `POST /api/auth/login` — `passport.authenticate('local')`
-- [ ] `GET /api/auth/google` — `passport.authenticate('google', { scope: ['profile', 'email'] })`
-- [ ] `GET /api/auth/google/callback` — Passport finds or creates the user and starts the session
-- [ ] `GET /api/auth/me` — returns `req.user`
-- [ ] `GET /api/auth/logout` — `req.logout()` and clear session
+- [x] `POST /api/auth/register` — bcrypt-hash password, create user, return signed JWT
+- [x] `POST /api/auth/login` — bcrypt-compare password, return signed JWT
+- [x] `GET /api/auth/me` (protected by `verifyToken`) — returns the current user
 
 **Grading flow**
 
-- [ ] Write the pure grading function (5 yes/no criteria → letter grade)
-- [ ] Unit-test the grading function with Mocha + Chai (each criterion, score-to-grade table, N/A handling)
-- [ ] Build the `StockDataProvider` interface (income statement + cash flow methods)
-- [ ] Implement the Yahoo provider with `yahoo-finance2`
-- [ ] `GET /api/grade/:ticker` (protected) — fetch → grade → cache in `stocks` → respond
+- [x] Write the pure grading function (5 yes/no criteria → letter grade)
+- [x] Unit-test the grading function with Mocha + Chai (each criterion, score-to-grade table, N/A handling — 13 tests passing)
+- [x] Build the Yahoo provider with `yahoo-finance2` (kept thin — easy to swap for FMP later)
+- [x] `GET /api/grade/:ticker` (protected) — fetch → grade → cache in `stocks` (24h TTL) → respond, plus records the lookup to `searchHistory`
 
 **Watchlist CRUD** (the "3+ CRUD routes for your main resource" rubric)
 
-- [ ] `GET /api/watchlist` (protected) — return current user's watchlist
-- [ ] `POST /api/watchlist` (protected) — add a ticker
-- [ ] `DELETE /api/watchlist/:ticker` (protected) — remove a ticker
+- [x] `GET /api/watchlist` (protected) — return current user's watchlist
+- [x] `POST /api/watchlist` (protected) — add a ticker
+- [x] `DELETE /api/watchlist/:ticker` (protected) — remove a ticker
 
-**Frontend**
+**Postman testing**
 
-- [ ] `AuthContext` + `useAuth()` hook (calls `/api/auth/me` on mount)
-- [ ] Login + Signup pages: email/password form **plus** a "Sign in with Google" link to `/api/auth/google`
-- [ ] `<TickerSearch />` input on the Home page (auth-gated)
-- [ ] Grade Detail page — `<GradeBadge />` + `<CriteriaList />` with real numbers
-- [ ] Watchlist page — list, "Add", "Remove"
-- [ ] NavBar shows login state + logout button
-
-**Postman testing** (continuous, not at the end)
-
-- [ ] Register → log in → `GET /api/auth/me` returns the user
-- [ ] `GET /api/watchlist` returns `[]` for a new user
-- [ ] `POST /api/watchlist` adds a ticker → `GET` shows it
-- [ ] `DELETE /api/watchlist/:ticker` removes it
-- [ ] `GET /api/grade/:ticker` returns a real grade for a logged-in user
-- [ ] Google OAuth round-trip — `/api/auth/google` redirects to Google and back
+- [x] Register → log in → `GET /api/auth/me` returns the user
+- [x] `GET /api/watchlist` returns `[]` for a new user
+- [x] `POST /api/watchlist` adds a ticker → `GET` shows it
+- [x] `DELETE /api/watchlist/:ticker` removes it
+- [x] `GET /api/grade/:ticker` returns a real grade for a logged-in user (verified with MSFT=B, AAPL=B)
+- [x] Collection exported to `backend/docs/postman/` so reviewers can import it
 
 **End-of-class check**
 
-- [ ] Demo: register → log in → grade `AAPL` → add to watchlist → see it on Watchlist page
-- [ ] All Week 2 instructor checklist items satisfied (models, auth routes, 3+ CRUD routes, route protection with Passport middleware, Postman testing, all code pushed)
+- [x] All Week 2 instructor rubric items satisfied — models, auth routes, 3+ CRUD routes, route protection (`verifyToken` middleware via `passport-jwt`), manual testing, 13 unit tests passing for the grading function
+- [ ] Push all code to GitHub
 
 ---
 
 ## Second Half — Crossing the Finish Line
 
-### Class 5 — Search History, Compare & Form Polish
+### Class 5 — Frontend Wiring + Search History + Compare
+
+**Frontend wiring** (carried forward from Class 4)
+
+- [ ] `AuthContext` + `useAuth()` hook — stores the JWT in `localStorage`, calls `/api/auth/me` on mount to hydrate the current user
+- [ ] Small `apiFetch()` helper that attaches `Authorization: Bearer <jwt>` to every request
+- [ ] Login + Signup pages: working email/password forms that hit `/api/auth/login` and `/api/auth/register`
+- [ ] `<TickerSearch />` input on the Home page that navigates to `/grade/:ticker`
+- [ ] Grade Detail page — fetch `/api/grade/:ticker`, render `<GradeBadge />` + `<CriteriaList />` with real numbers
+- [ ] Watchlist page — list, "Add", "Remove" wired to the watchlist API
+- [ ] NavBar shows login state + logout button (logout = delete the JWT from `localStorage`)
 
 **User-scoped extras**
 
 - [ ] Search history — record on every grade lookup; surface last 20 on the Home page
 - [ ] Compare page — `GET /api/compare?tickers=AAPL,MSFT,GOOG` rendered side-by-side
 
-**Forms & state**
+**End-of-class check**
 
-- [ ] All forms have proper validation + error messages
-- [ ] Every page handles loading and empty states cleanly
-- [ ] Confirm the Google OAuth flow links new Google users to existing accounts (match by email) instead of creating duplicates
+- [ ] Demo: register → log in → grade `AAPL` → add to watchlist → see it on the Watchlist page
 
 ---
 
@@ -150,6 +145,8 @@ Goal by end of class: a registered user can sign in (email/password or Google), 
 - [ ] Consistent spacing, typography, and Bootstrap component usage across pages
 - [ ] Color-coded grade badges (A green → F red)
 - [ ] Responsive layout works on phone and desktop widths
+- [ ] All forms have proper validation + error messages
+- [ ] Every page handles loading and empty states cleanly
 
 **Error handling**
 
@@ -176,7 +173,7 @@ Goal by end of class: a registered user can sign in (email/password or Google), 
 **Production setup**
 
 - [ ] Create a production MongoDB Atlas cluster (or separate database)
-- [ ] Add production env vars (`SESSION_SECRET`, `MONGO_URI`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, CORS origin)
+- [ ] Add production env vars on Render: `JWT_SECRET`, `MONGO_URI`, CORS origin; on Vercel: `VITE_API_URL` (add `GOOGLE_CLIENT_ID` + `VITE_GOOGLE_CLIENT_ID` only if Google sign-in is implemented — see Stretch Features)
 
 **Deploy backend → Render**
 
@@ -210,3 +207,19 @@ Goal by end of class: a registered user can sign in (email/password or Google), 
 - [ ] Share what was learned (auth, provider abstraction, deployment, testing)
 - [ ] Have a backup plan for the Render cold-start (warm the backend before demo)
 - [ ] Present
+
+---
+
+## Stretch Features
+
+Optional work that isn't required for the MVP rubric. Can land in any class after frontend wiring works for email/password.
+
+**Google sign-in** (via Google Identity Services)
+
+- [ ] Install `google-auth-library` on the backend
+- [ ] Register an OAuth Client ID in Google Cloud Console (Web application type, with `http://localhost:5173` as an authorised JavaScript origin; later add the Vercel URL)
+- [ ] Store `GOOGLE_CLIENT_ID` in backend `.env`; store `VITE_GOOGLE_CLIENT_ID` in frontend `.env`
+- [ ] `POST /api/auth/google` — verify the Google ID token with `google-auth-library`, find or create the matching user (match by `email` or `googleId`), return our signed JWT
+- [ ] Add a Google Identity Services button to Login + Signup pages — when clicked, post the returned ID token to `/api/auth/google` and store the returned JWT same as the email/password flow
+- [ ] Manual test: Google sign-in returns a JWT that works on protected routes
+- [ ] Confirm the flow links new Google users to existing accounts (match by email) instead of creating duplicates

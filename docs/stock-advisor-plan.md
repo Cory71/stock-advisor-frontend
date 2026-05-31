@@ -50,7 +50,7 @@ For every graded stock the UI shows:
 
 ## 4. Core Features (MVP)
 
-- **User accounts:** Email/password sign-up and login (Passport Local), plus **"Sign in with Google"** via Passport OAuth (server-side redirect flow). Both strategies create the same session cookie, so the rest of the app doesn't care how the user signed in. All history and watchlists are scoped per-user.
+- **User accounts:** Email/password sign-up and login, plus a **"Sign in with Google"** button (Google Identity Services). Both paths end at the same signed JWT, so the rest of the app doesn't care how the user signed in. All history and watchlists are scoped per-user.
 - **Ticker lookup:** Enter a symbol, get a graded result.
 - **Grade card:** Letter grade + 5-criteria breakdown + raw numbers.
 - **Saved watchlist:** Add a ticker to a personal watchlist; revisit grades without re-typing.
@@ -75,10 +75,11 @@ Per the capstone requirements (React, Node.js, Express, MongoDB):
 - **State management:** React Context + hooks — no Redux/Zustand. An `AuthContext` holds the current user and login/logout helpers; per-page server data (grades, watchlist, history) is fetched on mount and held in local component state. Form inputs use `useState`. The persistent cache lives server-side in MongoDB, so the browser doesn't need a global store for it.
 - **Backend:** Node.js + Express REST API.
 - **Database:** MongoDB (via Mongoose) — stores users, cached stock data, per-user search history, and per-user watchlists.
-- **Auth:** [Passport.js](https://www.passportjs.org/) with two strategies that both end in the same session cookie:
-  - **[`passport-local`](https://www.passportjs.org/packages/passport-local/):** email/password, with [`bcryptjs`](https://www.npmjs.com/package/bcryptjs) for password hashing.
-  - **[`passport-google-oauth20`](https://www.passportjs.org/packages/passport-google-oauth20/):** server-side OAuth redirect flow. The frontend hits `/api/auth/google`, the backend redirects to Google, Google redirects back to `/api/auth/google/callback`, and Passport either creates a user (first-time Google login) or finds the existing one. Either way the user ends up with a session cookie.
-  - **Sessions:** [`express-session`](https://www.npmjs.com/package/express-session) with [`connect-mongo`](https://www.npmjs.com/package/connect-mongo) so sessions persist in MongoDB across server restarts. Protected routes use a single `req.isAuthenticated()` middleware regardless of how the user signed in.
+- **Auth:** JWT-based and stateless. Two sign-in paths both end in the same signed JWT:
+  - **Email + password:** [`bcryptjs`](https://www.npmjs.com/package/bcryptjs) hashes the password on sign-up; on login we compare with bcrypt, then issue a JWT signed with [`jsonwebtoken`](https://www.npmjs.com/package/jsonwebtoken).
+  - **Google sign-in:** the official [Google Identity Services](https://developers.google.com/identity/gsi/web) button on the frontend returns a Google ID token; the backend verifies it with [`google-auth-library`](https://www.npmjs.com/package/google-auth-library), either creates a user (first-time Google login) or finds the existing one (matched on email or `googleId`), and issues our own JWT.
+  - **Verification:** Protected routes use [Passport.js](https://www.passportjs.org/) with the [`passport-jwt`](https://www.passportjs.org/packages/passport-jwt/) strategy. Passport reads the `Authorization: Bearer <token>` header, verifies the signature with `JWT_SECRET`, looks up the user by `payload.id`, and attaches the full Mongoose user document (minus `passwordHash`) to `req.user`.
+  - **Storage:** Frontend keeps the JWT in `localStorage`; every protected request sends it as `Authorization: Bearer <token>`. No sessions, no cookies, no `connect-mongo` — works cleanly across the Vercel/Render split.
 - **Data source:** Yahoo Finance via the [`yahoo-finance2`](https://www.npmjs.com/package/yahoo-finance2) npm package (unofficial but well-maintained — ~100k weekly downloads, active maintainers, ~13 years of community track record between it and its predecessor). Free, no API key, works for any US ticker.
 - **Provider abstraction:** All Yahoo calls live behind a thin `StockDataProvider` interface (one method for the income statement, one for the cash flow statement). The grading logic depends on the interface, not on Yahoo. If `yahoo-finance2` ever breaks unannounced, we can swap to Financial Modeling Prep ($22/mo Starter tier as the realistic paid fallback) by writing one new provider class — no changes to the grader, routes, or UI.
 - **Testing:** Jest + React Testing Library (frontend), Mocha + Chai (backend; Supertest for HTTP endpoint tests).
@@ -87,17 +88,17 @@ Per the capstone requirements (React, Node.js, Express, MongoDB):
 ## 7. Architecture & Data Flow
 
 ```text
-[ React UI ]  --HTTP-->  [ Express API + Passport ]  --[ StockDataProvider ]--> [ yahoo-finance2 ] --> [ Yahoo Finance ]
-       |                       |                       (interface;
-       |                       |                        FMP swap-in
-       |                       |                        if needed)
-       |                       |
-       |                       +--OAuth redirect--> [ Google OAuth ] --redirect back--> /api/auth/google/callback
-       |                       |
-       |                       +--Mongoose-->  [ MongoDB Atlas ]
-       |                                          (users + sessions + stock cache + history + watchlists)
-       +--reads grade JSON, renders grade card
-       +--"Sign in with Google" link --> backend /api/auth/google (server handles the rest)
+[ React UI ]  --HTTP + Authorization: Bearer <jwt>-->  [ Express API + passport-jwt ]  --[ StockDataProvider ]--> [ yahoo-finance2 ] --> [ Yahoo Finance ]
+       |                                                    |                              (interface;
+       |                                                    |                               FMP swap-in
+       |                                                    |                               if needed)
+       |                                                    |
+       |                                                    +--verify ID token--> [ Google OAuth ]
+       |                                                    |
+       |                                                    +--Mongoose-->  [ MongoDB Atlas ]
+       |                                                                       (users + stock cache + history + watchlists)
+       +--stores JWT in localStorage, reads grade JSON, renders grade card
+       +--Google Sign-In button --> [ Google OAuth ] --returns ID token--> backend --returns our JWT
 ```
 
 Frontend state layout:
@@ -143,14 +144,14 @@ Request flow for a grade lookup:
 
 ## 9. API Endpoints (initial)
 
-Auth (Passport-based):
+Auth (JWT-based):
 
-- `POST /api/auth/register` → hash password with bcrypt, create user, log in via Passport, return session cookie.
-- `POST /api/auth/login` → authenticate email/password through `passport-local`, return session cookie.
-- `GET /api/auth/google` → kicks off the Google OAuth redirect flow (`passport.authenticate('google')`).
-- `GET /api/auth/google/callback` → Google redirects back here; Passport creates or finds the user and starts the session.
-- `GET /api/auth/logout` → `req.logout()` and clear the session.
-- `GET /api/auth/me` → returns `req.user` (used by the frontend on load).
+- `POST /api/auth/register` → hash password with bcrypt, create user, return a signed JWT.
+- `POST /api/auth/login` → verify email/password with bcrypt, return a signed JWT.
+- `POST /api/auth/google` → verify the Google ID token with `google-auth-library`, find or create the matching user, return a signed JWT.
+- `GET /api/auth/me` → protected by `passport-jwt` via the `verifyToken` middleware; returns the current user.
+
+(No logout endpoint required — the frontend logs out by deleting the JWT from `localStorage`. Optional `POST /api/auth/logout` later if we ever maintain a server-side token blocklist.)
 
 Grading:
 
@@ -166,7 +167,7 @@ User data:
 
 ## 10. UI Pages / Components
 
-- **Sign-up / Login pages:** email + password form **and** a "Sign in with Google" link that hits `GET /api/auth/google` (Passport handles the OAuth redirect server-side).
+- **Sign-up / Login pages:** email + password form **and** a "Sign in with Google" button rendered by Google Identity Services. The button returns a Google ID token to the frontend, which posts it to `POST /api/auth/google` for verification and a JWT in response.
 - **Home / Search page:** ticker input + recent searches (per logged-in user).
 - **Grade detail page:** letter grade, criteria checklist, raw numbers, "graded at" timestamp, "Add to watchlist" button.
 - **Watchlist page:** user's saved tickers with their current grades.

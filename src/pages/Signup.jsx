@@ -1,5 +1,5 @@
 // Signup page — email/password registration form plus a "Sign in with Google"
-// link (same as Login, since OAuth handles both new and returning users).
+// button (same as Login, since the Google flow handles both new and returning users).
 
 function Signup() {
   return (
