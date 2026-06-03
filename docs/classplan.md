@@ -109,7 +109,7 @@ Goal by end of class: a complete, tested backend — auth (email/password + JWT)
 **End-of-class check**
 
 - [x] All Week 2 instructor rubric items satisfied — models, auth routes, 3+ CRUD routes, route protection (`verifyToken` middleware via `passport-jwt`), manual testing, 13 unit tests passing for the grading function
-- [ ] Push all code to GitHub
+- [x] Push all code to GitHub
 
 ---
 
@@ -119,22 +119,37 @@ Goal by end of class: a complete, tested backend — auth (email/password + JWT)
 
 **Frontend wiring** (carried forward from Class 4)
 
-- [ ] `AuthContext` + `useAuth()` hook — stores the JWT in `localStorage`, calls `/api/auth/me` on mount to hydrate the current user
-- [ ] Small `apiFetch()` helper that attaches `Authorization: Bearer <jwt>` to every request
-- [ ] Login + Signup pages: working email/password forms that hit `/api/auth/login` and `/api/auth/register`
-- [ ] `<TickerSearch />` input on the Home page that navigates to `/grade/:ticker`
-- [ ] Grade Detail page — fetch `/api/grade/:ticker`, render `<GradeBadge />` + `<CriteriaList />` with real numbers
-- [ ] Watchlist page — list, "Add", "Remove" wired to the watchlist API
-- [ ] NavBar shows login state + logout button (logout = delete the JWT from `localStorage`)
+- [x] `AuthContext` + `useAuth()` hook — stores the JWT in `localStorage`, calls `/api/auth/me` on mount to hydrate the current user
+- [x] Small `apiFetch()` helper that attaches `Authorization: Bearer <jwt>` to every request
+- [x] Login + Signup pages: working email/password forms that hit `/api/auth/login` and `/api/auth/register`
+- [x] `<TickerSearch />` input on the Home page that navigates to `/grade/:ticker`
+- [x] Grade Detail page — fetch `/api/grade/:ticker`, render letter grade + criteria checklist with real numbers + "Add to watchlist" button
+- [x] Watchlist page — list, "Add", "Remove" wired to the watchlist API
+- [x] NavBar shows login state + logout button (logout = delete the JWT from `localStorage`)
 
 **User-scoped extras**
 
-- [ ] Search history — record on every grade lookup; surface last 20 on the Home page
-- [ ] Compare page — `GET /api/compare?tickers=AAPL,MSFT,GOOG` rendered side-by-side
+- [x] Search history — `GET /api/history` endpoint + last 20 surfaced on Home page
+- [x] Compare page — `GET /api/compare?tickers=AAPL,MSFT,GOOG` + side-by-side cards (graceful per-ticker error handling)
+
+**Wireframes** (instructor's Week 3 planning requirement)
+
+- [x] `docs/wireframes.md` — Mermaid user flow + 6 ASCII wireframes with happy/loading/empty/error states per screen
+- [x] `docs/wireframes.pdf` — visual version
+
+**Bonus polish**
+
+- [x] Dark mode toggle in NavBar — Bootstrap 5.3 `data-bs-theme` with `ThemeContext`, persists to `localStorage`, respects OS preference on first visit
+- [x] **Search by company name** — backend resolves names (e.g. "Apple") to canonical tickers via Yahoo's search endpoint; Home, Grade Detail, Watchlist, and Compare inputs all accept either form
+- [x] **Company name on every page** — `Stock` model gained an optional `name` field; surfaced beside the ticker on Grade Detail, in recent-searches rows on Home, in Watchlist rows, and in Compare cards/columns
+- [x] **Share price + currency** — `Stock` model gained `price` + `currency` from Yahoo's `regularMarketPrice`; displayed as `$310.61 USD` on Grade Detail, Watchlist ("Last price" column), and Compare. Cache self-heals: legacy entries missing price are re-graded on next view.
+- [x] **Watchlist grade tracking** — `WatchlistItem` gained `gradeAtAdd` snapshot; GET enriches each row with current grade + company name from the Stock cache; UI shows `▲ Upgraded` / `▼ Downgraded` / `— No change` per row
+- [x] **Compare table view** — toggle between Cards (one card per stock) and Table (criteria as rows × stocks as columns) for easier side-by-side reading
+- [x] **Friendly logged-out prompt on Grade Detail** — instead of "Missing or invalid token", unauthenticated visitors see an info alert with Log in / Sign up CTAs
 
 **End-of-class check**
 
-- [ ] Demo: register → log in → grade `AAPL` → add to watchlist → see it on the Watchlist page
+- [x] Demo: register → log in → grade `AAPL` → add to watchlist → see it on the Watchlist page (verified end-to-end via Playwright)
 
 ---
 

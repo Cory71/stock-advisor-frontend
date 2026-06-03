@@ -43,6 +43,8 @@ All five criteria map directly to columns/rows on the Yahoo Finance income state
 
 For every graded stock the UI shows:
 
+- The canonical ticker symbol (so "Apple" still resolves to `AAPL`).
+- The company name and the latest share price + listing currency (e.g. `$310.61 USD`, `$112.50 CAD`).
 - The letter grade (large, color-coded).
 - All five criteria as a checklist with ✓ / ✗.
 - The actual numbers used for each check (so the user can verify and learn).
@@ -50,12 +52,13 @@ For every graded stock the UI shows:
 
 ## 4. Core Features (MVP)
 
-- **User accounts:** Email/password sign-up and login, plus a **"Sign in with Google"** button (Google Identity Services). Both paths end at the same signed JWT, so the rest of the app doesn't care how the user signed in. All history and watchlists are scoped per-user.
-- **Ticker lookup:** Enter a symbol, get a graded result.
-- **Grade card:** Letter grade + 5-criteria breakdown + raw numbers.
-- **Saved watchlist:** Add a ticker to a personal watchlist; revisit grades without re-typing.
-- **Recent searches / history:** Last 20 tickers the user looked up (per user, stored in MongoDB).
-- **Comparison view:** Look up 2–3 tickers side-by-side.
+- **User accounts:** Email/password sign-up and login. Google sign-in is planned as a stretch (see [`classplan.md`](./classplan.md) — Stretch Features). All history and watchlists are scoped per-user via a stateless JWT.
+- **Ticker or name lookup:** Enter a ticker (`AAPL`) **or a company name** (`Apple`); the backend resolves names to canonical tickers via Yahoo's search endpoint.
+- **Grade card:** Canonical ticker, company name, share price + currency, letter grade, and 5-criteria breakdown with the raw numbers used.
+- **Saved watchlist:** Add a ticker; each row tracks the grade at the moment it was added vs. the current cached grade, with an upgrade / downgrade / no-change indicator, plus the company name and last known price.
+- **Recent searches / history:** Last 20 tickers the user looked up (per user). Recent search rows also show the company name beside the ticker.
+- **Comparison view:** Look up 2–3 tickers side-by-side. Two view modes: a **Cards** view (one card per stock with the criteria inside) and a **Table** view (criteria as rows × stocks as columns) for spotting differences at a glance.
+- **Dark mode:** Bootstrap 5.3 `data-bs-theme` toggle in the NavBar; respects OS preference on first visit and persists to `localStorage`.
 - **Responsive UI:** Works on desktop and mobile browsers.
 
 ## 5. Stretch Features (post-MVP)
@@ -127,6 +130,9 @@ Request flow for a grade lookup:
 
 - **`stocks`** — shared cache of graded results (not per-user, since the underlying numbers are the same for everyone)
   - `ticker` (string, unique-indexed)
+  - `name` (string) — company name as Yahoo reports it (e.g. "Apple Inc."). Optional on legacy docs.
+  - `price` (number) — last known share price from `regularMarketPrice`. Optional on legacy docs.
+  - `currency` (string) — ISO code the price is quoted in (e.g. `USD`, `CAD`, `EUR`).
   - `grade` (A/B/C/D/F)
   - `criteria` (array of 5 objects: `{ name, passed, value, prior, source }`)
   - `rawData` (raw revenue & free cash flow snapshots, including TTM)
@@ -140,6 +146,7 @@ Request flow for a grade lookup:
 - **`watchlists`** — per-user saved tickers
   - `userId` (indexed)
   - `ticker`
+  - `gradeAtAdd` (string) — letter grade captured at the moment the user added this ticker. Optional on legacy rows. Frozen; never overwritten.
   - `addedAt`
 
 ## 9. API Endpoints (initial)
@@ -155,24 +162,24 @@ Auth (JWT-based):
 
 Grading:
 
-- `GET /api/grade/:ticker` → graded result for a ticker (auth required; also records to user's history).
-- `GET /api/compare?tickers=AAPL,MSFT,GOOG` → graded results for multiple tickers.
+- `GET /api/grade/:query` → graded result for a ticker **or company name** (auth required; resolves names via Yahoo search, records to user's history).
+- `GET /api/compare?tickers=AAPL,MSFT,GOOG` → graded results for 2–3 tickers or names (auth required; per-ticker errors don't break the response).
 
 User data:
 
-- `GET /api/history` → current user's recent lookups.
-- `GET /api/watchlist` → current user's watchlist with grades.
-- `POST /api/watchlist` → add a ticker.
+- `GET /api/history` → current user's recent lookups, enriched with the cached company name per row.
+- `GET /api/watchlist` → current user's watchlist, enriched with company name, current grade, last price, and currency from the Stock cache.
+- `POST /api/watchlist` → add a ticker or name (resolves and grades; freezes the current grade as `gradeAtAdd`).
 - `DELETE /api/watchlist/:ticker` → remove a ticker.
 
 ## 10. UI Pages / Components
 
-- **Sign-up / Login pages:** email + password form **and** a "Sign in with Google" button rendered by Google Identity Services. The button returns a Google ID token to the frontend, which posts it to `POST /api/auth/google` for verification and a JWT in response.
-- **Home / Search page:** ticker input + recent searches (per logged-in user).
-- **Grade detail page:** letter grade, criteria checklist, raw numbers, "graded at" timestamp, "Add to watchlist" button.
-- **Watchlist page:** user's saved tickers with their current grades.
-- **Compare page:** side-by-side grades for 2–3 tickers.
-- **Shared components:** `<GradeBadge />`, `<CriteriaList />`, `<TickerSearch />`, `<Loading />`, `<ErrorBanner />`, `<NavBar />` (with login state).
+- **Sign-up / Login pages:** email + password forms. (Google sign-in is a stretch — see [`classplan.md`](./classplan.md).)
+- **Home / Search page:** ticker-or-name input + recent searches (per logged-in user, ticker + company name + date).
+- **Grade detail page:** ticker, company name, share price + currency, letter grade, criteria checklist with raw numbers, "graded at" timestamp, "Add to watchlist" button. Logged-out visitors get a friendly login/signup prompt instead of a technical error.
+- **Watchlist page:** table of saved tickers with company name, last price, added date, grade-at-add, current grade, and an upgrade/downgrade/no-change indicator.
+- **Compare page:** 2–3 tickers (or names) side-by-side. Toggle between **Cards** view (one card per stock) and **Table** view (criteria as rows, stocks as columns).
+- **Shared components:** `<TickerSearch />`, `<NavBar />` (with login state and dark mode toggle), `<AuthContext>` / `useAuth()`, `<ThemeContext>` / `useTheme()`, and an `apiFetch()` helper that attaches the JWT to every request.
 
 ## 11. Milestones
 

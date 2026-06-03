@@ -24,6 +24,9 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Tool caches
+.playwright-mcp/
+
 # Course-provided materials and personal notes (not project deliverables)
 course-materials/
 git-workflow.md

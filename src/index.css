@@ -1,10 +1,10 @@
-/* Global page reset */
+/* Global page reset. Bootstrap provides body background/colour via its
+   --bs-body-bg / --bs-body-color variables — those change automatically when
+   we toggle data-bs-theme, so we don't override them here. */
 * {
   box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  background: #f9fafb;
-  color: #1f2937;
 }

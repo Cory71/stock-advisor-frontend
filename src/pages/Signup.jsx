@@ -1,11 +1,94 @@
-// Signup page — email/password registration form plus a "Sign in with Google"
-// button (same as Login, since the Google flow handles both new and returning users).
+// Signup page — email/password registration form. On success, save the JWT
+// into AuthContext (which stores it in localStorage) and navigate to Home.
+
+import { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { Form, Button, Alert } from 'react-bootstrap';
+import { useAuth } from '../context/AuthContext';
+import { apiFetch } from '../lib/apiFetch';
 
 function Signup() {
+  // Form state — controlled inputs.
+  const [displayName, setDisplayName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  // UI state — shown to the user.
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const { login } = useAuth();
+  const navigate = useNavigate();
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError('');
+    setSubmitting(true);
+    try {
+      const data = await apiFetch('/api/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({ email, password, displayName })
+      });
+      // Backend returns { token, user } — log the new user in immediately.
+      login(data.token, data.user);
+      navigate('/');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   return (
-    <div>
+    <div style={{ maxWidth: 400 }}>
       <h1>Sign up</h1>
-      <p>Email/password registration form will appear here.</p>
+
+      {error && <Alert variant="danger">{error}</Alert>}
+
+      <Form onSubmit={handleSubmit}>
+        <Form.Group className="mb-3" controlId="signupDisplayName">
+          <Form.Label>Display name</Form.Label>
+          <Form.Control
+            type="text"
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            autoFocus
+          />
+          <Form.Text className="text-muted">
+            Optional — shown on the NavBar after you sign in.
+          </Form.Text>
+        </Form.Group>
+
+        <Form.Group className="mb-3" controlId="signupEmail">
+          <Form.Label>Email</Form.Label>
+          <Form.Control
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </Form.Group>
+
+        <Form.Group className="mb-3" controlId="signupPassword">
+          <Form.Label>Password</Form.Label>
+          <Form.Control
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            minLength={6}
+          />
+          <Form.Text className="text-muted">At least 6 characters.</Form.Text>
+        </Form.Group>
+
+        <Button type="submit" variant="primary" disabled={submitting}>
+          {submitting ? 'Creating account…' : 'Create account'}
+        </Button>
+      </Form>
+
+      <p className="mt-3">
+        Already registered? <Link to="/login">Log in</Link>
+      </p>
     </div>
   );
 }
