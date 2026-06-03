@@ -6,6 +6,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Form, Button, Alert } from 'react-bootstrap';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../lib/apiFetch';
+import GoogleSignInButton from '../components/GoogleSignInButton';
 
 function Login() {
   // Form state — controlled inputs.
@@ -43,6 +44,15 @@ function Login() {
       <h1>Log in</h1>
 
       {error && <Alert variant="danger">{error}</Alert>}
+
+      {/* Google option first — many users prefer one-click sign-in */}
+      <GoogleSignInButton />
+
+      <div className="d-flex align-items-center text-muted my-3">
+        <hr className="flex-grow-1" />
+        <span className="px-2 small">or</span>
+        <hr className="flex-grow-1" />
+      </div>
 
       <Form onSubmit={handleSubmit}>
         <Form.Group className="mb-3" controlId="loginEmail">
