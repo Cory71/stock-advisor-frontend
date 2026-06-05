@@ -157,25 +157,35 @@ Goal by end of class: a complete, tested backend — auth (email/password + JWT)
 
 **UI polish**
 
-- [ ] Consistent spacing, typography, and Bootstrap component usage across pages
-- [ ] Color-coded grade badges (A green → F red)
-- [ ] Responsive layout works on phone and desktop widths
-- [ ] All forms have proper validation + error messages
-- [ ] Every page handles loading and empty states cleanly
+- [x] Consistent spacing, typography, and Bootstrap component usage across pages
+- [x] Color-coded grade badges (A green → F red) — `gradeColor` helper maps each letter to a Bootstrap variant
+- [x] Responsive layout works on phone and desktop widths — verified at 360×740 via Playwright
+- [x] All forms have proper validation + error messages — HTML5 + backend length check (≥6 chars) on password
+- [x] Every page handles loading and empty states cleanly
 
 **Error handling**
 
-- [ ] Invalid ticker → friendly message
-- [ ] Yahoo Finance outage → "data unavailable, try again later"
-- [ ] Insufficient history → "not enough data to grade"
-- [ ] API failures → `<ErrorBanner />` (no crashes)
+- [x] Invalid ticker → friendly message — `Couldn't find a stock for "<query>"`
+- [x] Yahoo Finance outage → friendly 503 with `Stock data is temporarily unavailable. Please try again in a moment.` (covered by Supertest spec)
+- [x] Insufficient history → grading returns `N/A` with explanatory reason rendered in a grey alert on the Grade Detail page
+- [x] API failures → red Bootstrap `Alert` per page (no crashes), with shared 5-second auto-dismiss via `useAutoDismiss`
 
 **Testing**
 
-- [ ] Backend: Mocha + Chai unit tests on the grading function (already started in Class 4)
-- [ ] Backend: Supertest API tests for `/api/grade/:ticker`, watchlist, history, auth
-- [ ] Frontend: Jest + RTL component tests for `<GradeBadge />`, `<CriteriaList />`, `<TickerSearch />`
-- [ ] Manual smoke test on Chrome + mobile width
+- [x] Backend: Mocha + Chai unit tests on the grading function — 13 tests on the pure grading math
+- [x] Backend: Supertest API tests for `/api/auth`, `/api/grade`, `/api/watchlist`, `/api/compare`, `/api/history` — 37 tests across 5 spec files (50 total backend with grading)
+- [x] Frontend: Vitest + React Testing Library tests for helpers + components — 25 tests covering `grade` helpers, `<TickerSearch />`, `<AboutCard />`, `<Footer />`, `<CandlestickFooter />`
+- [x] Manual smoke test on Chrome + mobile width — verified at 360px in Playwright; Watchlist columns collapse cleanly
+
+**Bonus polish (beyond the rubric)**
+
+- [x] **Page footer** — `StockGrader © <year>` on every page; year computed at render time
+- [x] **Decorative candlestick band** below the form on Home (logged out), Login, Signup — fills sparse-content pages without competing with data-dense ones
+- [x] **About card** ("What is StockGrader?") beside the form on Login, Signup, and Home (logged-out) — explains the 5 criteria + scoring + data source
+- [x] **Auto-dismissing alerts** — every Alert across the app self-clears after 5s via a shared `useAutoDismiss` hook
+- [x] **Light-mode background tweak** — soft grey body (`#d1d5db`) so white cards pop visually
+- [x] **Watchlist mobile column hiding** — 4 lower-priority columns hide below 576px so the table fits a phone viewport without horizontal scroll
+- [x] **Verbose test reporters** — both `npm test` scripts default to per-test output for instructor review
 
 **Devlog**
 
@@ -229,12 +239,12 @@ Goal by end of class: a complete, tested backend — auth (email/password + JWT)
 
 Optional work that isn't required for the MVP rubric. Can land in any class after frontend wiring works for email/password.
 
-**Google sign-in** (via Google Identity Services)
+**Google sign-in** (via Google Identity Services) — **shipped during Class 5/6**
 
-- [ ] Install `google-auth-library` on the backend
-- [ ] Register an OAuth Client ID in Google Cloud Console (Web application type, with `http://localhost:5173` as an authorised JavaScript origin; later add the Vercel URL)
-- [ ] Store `GOOGLE_CLIENT_ID` in backend `.env`; store `VITE_GOOGLE_CLIENT_ID` in frontend `.env`
-- [ ] `POST /api/auth/google` — verify the Google ID token with `google-auth-library`, find or create the matching user (match by `email` or `googleId`), return our signed JWT
-- [ ] Add a Google Identity Services button to Login + Signup pages — when clicked, post the returned ID token to `/api/auth/google` and store the returned JWT same as the email/password flow
-- [ ] Manual test: Google sign-in returns a JWT that works on protected routes
-- [ ] Confirm the flow links new Google users to existing accounts (match by email) instead of creating duplicates
+- [x] Install `google-auth-library` on the backend
+- [x] Register an OAuth Client ID in Google Cloud Console (Web application type, with `http://localhost:5173` as an authorised JavaScript origin; later add the Vercel URL)
+- [x] Store `GOOGLE_CLIENT_ID` in backend `.env`; store `VITE_GOOGLE_CLIENT_ID` in frontend `.env`
+- [x] `POST /api/auth/google` — verify the Google ID token with `google-auth-library`, find or create the matching user (match by `email` or `googleId`), return our signed JWT
+- [x] Add a Google Identity Services button to Login + Signup pages via shared `<GoogleSignInButton />` — when clicked, posts the returned ID token to `/api/auth/google` and stores the returned JWT same as the email/password flow
+- [x] Manual test: Google sign-in returns a JWT that works on protected routes
+- [x] Confirm the flow links new Google users to existing accounts (match by email) instead of creating duplicates

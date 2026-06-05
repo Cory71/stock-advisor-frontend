@@ -3,12 +3,18 @@
 
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Form, Button, Alert } from 'react-bootstrap';
+import { Form, Button, Alert, Row, Col } from 'react-bootstrap';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../lib/apiFetch';
+import { useAutoDismiss } from '../lib/useAutoDismiss';
+import { usePageTitle } from '../lib/usePageTitle';
 import GoogleSignInButton from '../components/GoogleSignInButton';
+import CandlestickFooter from '../components/CandlestickFooter';
+import AboutCard from '../components/AboutCard';
 
 function Signup() {
+  usePageTitle('Sign up');
+
   // Form state — controlled inputs.
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
@@ -17,6 +23,9 @@ function Signup() {
   // UI state — shown to the user.
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // Error banner auto-dismisses after 5s.
+  useAutoDismiss(error, setError);
 
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -41,8 +50,11 @@ function Signup() {
   }
 
   return (
-    <div style={{ maxWidth: 400 }}>
-      <h1>Sign up</h1>
+    <>
+      <Row className="g-4">
+        <Col md={6}>
+          <div style={{ maxWidth: 400 }}>
+            <h1>Sign up</h1>
 
       {error && <Alert variant="danger">{error}</Alert>}
 
@@ -99,7 +111,15 @@ function Signup() {
       <p className="mt-3">
         Already registered? <Link to="/login">Log in</Link>
       </p>
-    </div>
+          </div>
+        </Col>
+        <Col md={6}>
+          <AboutCard />
+        </Col>
+      </Row>
+
+      <CandlestickFooter />
+    </>
   );
 }
 

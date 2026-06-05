@@ -13,11 +13,15 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../lib/apiFetch';
+import { useAutoDismiss } from '../lib/useAutoDismiss';
 
 function GoogleSignInButton() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState('');
+
+  // Error banner auto-dismisses after 5s.
+  useAutoDismiss(error, setError);
 
   // Skip rendering the button entirely if the Google Client ID isn't configured.
   // This way email/password still works locally even before the .env is wired.

@@ -1,0 +1,22 @@
+/* Decorative footer band — full container width, sits below page content.
+   Opacity is bumped higher in dark mode because dark backgrounds soak up
+   faint colours more than light ones. */
+
+.candlestick-footer {
+  width: 100%;
+  height: 180px;
+  margin-top: 3rem;
+  opacity: 0.14;
+  pointer-events: none;
+}
+
+[data-bs-theme="dark"] .candlestick-footer {
+  opacity: 0.22;
+}
+
+@media (max-width: 576px) {
+  .candlestick-footer {
+    height: 120px;
+    margin-top: 2rem;
+  }
+}

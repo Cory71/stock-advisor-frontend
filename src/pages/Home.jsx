@@ -2,13 +2,18 @@
 
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ListGroup, Spinner } from 'react-bootstrap';
+import { ListGroup, Spinner, Row, Col } from 'react-bootstrap';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../lib/apiFetch';
 import TickerSearch from '../components/TickerSearch';
+import CandlestickFooter from '../components/CandlestickFooter';
+import AboutCard from '../components/AboutCard';
+import { usePageTitle } from '../lib/usePageTitle';
 
 function Home() {
   const { user, loading: authLoading } = useAuth();
+  // Home keeps just the brand in the tab — no prefix needed.
+  usePageTitle();
 
   const [history, setHistory]               = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -41,9 +46,22 @@ function Home() {
 
   return (
     <div>
-      <h1>Grade a stock</h1>
-      <p>Enter a ticker symbol or company name to get a letter grade and a five-point breakdown.</p>
-      <TickerSearch />
+      <Row className="g-4">
+        {/* Search + heading column. Takes full width when logged in, half when
+            logged out (so the About card can sit beside it on desktop). */}
+        <Col md={!user ? 6 : 12}>
+          <h1>Grade a stock</h1>
+          <p>Enter a ticker symbol or company name to get a letter grade and a five-point breakdown.</p>
+          <TickerSearch />
+        </Col>
+
+        {/* About card — only shown to logged-out visitors as a "what is this?" pitch */}
+        {!user && (
+          <Col md={6}>
+            <AboutCard />
+          </Col>
+        )}
+      </Row>
 
       {/* Recent searches are personal — only show when someone's logged in */}
       {user && (
@@ -90,6 +108,9 @@ function Home() {
           )}
         </div>
       )}
+
+      {/* Decorative candlestick band — fills the dead space at the bottom */}
+      <CandlestickFooter />
     </div>
   );
 }

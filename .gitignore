@@ -27,6 +27,10 @@ Thumbs.db
 # Tool caches
 .playwright-mcp/
 
+# Playwright verification screenshots in repo root (real product images
+# under src/assets or public/ are still tracked normally).
+/*.png
+
 # Course-provided materials and personal notes (not project deliverables)
 course-materials/
 git-workflow.md

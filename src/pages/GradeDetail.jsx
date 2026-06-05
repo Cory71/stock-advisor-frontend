@@ -7,6 +7,8 @@ import { useParams, Link } from 'react-router-dom';
 import { Card, Alert, Spinner, Button, Badge } from 'react-bootstrap';
 import { apiFetch } from '../lib/apiFetch';
 import { useAuth } from '../context/AuthContext';
+import { useAutoDismiss } from '../lib/useAutoDismiss';
+import { usePageTitle } from '../lib/usePageTitle';
 
 // Pick a Bootstrap colour variant for the letter grade.
 function gradeColor(grade) {
@@ -56,6 +58,14 @@ function GradeDetail() {
   // Add-to-watchlist UI state lives next to the result.
   const [adding, setAdding]     = useState(false);
   const [addInfo, setAddInfo]   = useState(null); // { variant, message } or null
+
+  // Banner auto-dismisses after 5s so the user doesn't have to click the X.
+  useAutoDismiss(addInfo, setAddInfo);
+
+  // Tab title shows the canonical ticker once data loads; falls back to the
+  // URL fragment while the request is in flight (e.g. "MICROSOFT" briefly
+  // until it resolves to "MSFT").
+  usePageTitle(data?.ticker || upper);
 
   // Fetch the graded result when the ticker changes.
   useEffect(() => {

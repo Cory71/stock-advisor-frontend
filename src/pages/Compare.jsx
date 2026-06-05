@@ -9,6 +9,8 @@ import {
   Form, Button, Card, Alert, Spinner, Badge, Row, Col, Table, ButtonGroup
 } from 'react-bootstrap';
 import { apiFetch } from '../lib/apiFetch';
+import { useAutoDismiss } from '../lib/useAutoDismiss';
+import { usePageTitle } from '../lib/usePageTitle';
 
 // Bootstrap colour for a letter grade — matches the Grade Detail page.
 function gradeColor(grade) {
@@ -151,6 +153,8 @@ function CompareTable({ results }) {
 }
 
 function Compare() {
+  usePageTitle('Compare');
+
   // Three input slots — third one is optional.
   const [tickers, setTickers] = useState(['AAPL', 'MSFT', 'GOOG']);
   const [results, setResults] = useState(null);
@@ -158,6 +162,9 @@ function Compare() {
   const [error, setError]     = useState('');
   // Which layout to show after results come back.
   const [view, setView]       = useState('cards');
+
+  // Error banner auto-dismisses after 5s.
+  useAutoDismiss(error, setError);
 
   function handleTickerChange(i, value) {
     const next = [...tickers];

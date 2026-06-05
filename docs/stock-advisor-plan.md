@@ -52,14 +52,17 @@ For every graded stock the UI shows:
 
 ## 4. Core Features (MVP)
 
-- **User accounts:** Email/password sign-up and login. Google sign-in is planned as a stretch (see [`classplan.md`](./classplan.md) — Stretch Features). All history and watchlists are scoped per-user via a stateless JWT.
+- **User accounts:** Email/password sign-up and login **plus Google sign-in** via Google Identity Services. Both paths end at the same signed JWT. All history and watchlists are scoped per-user.
 - **Ticker or name lookup:** Enter a ticker (`AAPL`) **or a company name** (`Apple`); the backend resolves names to canonical tickers via Yahoo's search endpoint.
 - **Grade card:** Canonical ticker, company name, share price + currency, letter grade, and 5-criteria breakdown with the raw numbers used.
 - **Saved watchlist:** Add a ticker; each row tracks the grade at the moment it was added vs. the current cached grade, with an upgrade / downgrade / no-change indicator, plus the company name and last known price.
 - **Recent searches / history:** Last 20 tickers the user looked up (per user). Recent search rows also show the company name beside the ticker.
 - **Comparison view:** Look up 2–3 tickers side-by-side. Two view modes: a **Cards** view (one card per stock with the criteria inside) and a **Table** view (criteria as rows × stocks as columns) for spotting differences at a glance.
-- **Dark mode:** Bootstrap 5.3 `data-bs-theme` toggle in the NavBar; respects OS preference on first visit and persists to `localStorage`.
-- **Responsive UI:** Works on desktop and mobile browsers.
+- **Dark mode:** Bootstrap 5.3 `data-bs-theme` toggle in the NavBar; respects OS preference on first visit and persists to `localStorage`. Light mode uses a soft grey body so white cards lift off the page.
+- **Responsive UI:** Works on desktop and mobile browsers; Watchlist drops lower-priority columns below 576px so the table fits a phone viewport.
+- **Onboarding card:** An "About StockGrader" explainer sits beside the form on Login, Signup, and the logged-out Home — so first-time visitors immediately see the 5 criteria, score scale, and data source.
+- **Auto-dismissing alerts:** Every success / error banner self-clears after 5 seconds via a shared `useAutoDismiss` hook.
+- **Page footer:** `StockGrader © <year>` on every page; year computed at render time so it auto-updates each January.
 
 ## 5. Stretch Features (post-MVP)
 
@@ -174,12 +177,12 @@ User data:
 
 ## 10. UI Pages / Components
 
-- **Sign-up / Login pages:** email + password forms. (Google sign-in is a stretch — see [`classplan.md`](./classplan.md).)
-- **Home / Search page:** ticker-or-name input + recent searches (per logged-in user, ticker + company name + date).
+- **Sign-up / Login pages:** email + password forms plus a "Sign in with Google" button (Google Identity Services). Both forms sit beside an "About StockGrader" card on desktop, stacked on phones.
+- **Home / Search page:** ticker-or-name input. Logged-in users see recent searches below; logged-out users see the About card beside the search box.
 - **Grade detail page:** ticker, company name, share price + currency, letter grade, criteria checklist with raw numbers, "graded at" timestamp, "Add to watchlist" button. Logged-out visitors get a friendly login/signup prompt instead of a technical error.
-- **Watchlist page:** table of saved tickers with company name, last price, added date, grade-at-add, current grade, and an upgrade/downgrade/no-change indicator.
+- **Watchlist page:** table of saved tickers with company name, last price, added date, grade-at-add, current grade, and an upgrade/downgrade/no-change indicator. Lower-priority columns hide below 576px so the table fits a phone viewport.
 - **Compare page:** 2–3 tickers (or names) side-by-side. Toggle between **Cards** view (one card per stock) and **Table** view (criteria as rows, stocks as columns).
-- **Shared components:** `<TickerSearch />`, `<NavBar />` (with login state and dark mode toggle), `<AuthContext>` / `useAuth()`, `<ThemeContext>` / `useTheme()`, and an `apiFetch()` helper that attaches the JWT to every request.
+- **Shared components:** `<TickerSearch />`, `<NavBar />` (login state + dark mode toggle), `<Footer />` (dynamic year), `<AboutCard />`, `<CandlestickFooter />` (decorative band on sparse pages), `<GoogleSignInButton />`, `<AuthContext>` / `useAuth()`, `<ThemeContext>` / `useTheme()`, `useAutoDismiss()` (5s alert auto-clear), and an `apiFetch()` helper that attaches the JWT to every request.
 
 ## 11. Milestones
 
@@ -187,10 +190,12 @@ See [`classplan.md`](./classplan.md) for the live class-by-class tracker.
 
 ## 12. Testing Strategy
 
-- **Unit tests** on the grading function (Mocha + Chai) — easiest, highest-value tests; cover each criterion + the score→grade mapping including edge cases (missing data, ties, 0 yeses).
-- **API tests** with Supertest (driven by Mocha) for each endpoint, mocking the Yahoo Finance client.
-- **Component tests** with React Testing Library for the grade card and search form.
-- **Manual smoke test** across desktop + mobile browser sizes before deploy.
+Backend uses **Mocha + Chai + Supertest** with `mongodb-memory-server` for isolation and `sinon` to stub the Yahoo provider. Frontend uses **Vitest + React Testing Library** (Vite-native, same syntax as Jest).
+
+- **Unit tests** on the grading function (Mocha + Chai) — 13 tests covering each criterion + the score→grade mapping + N/A edge cases.
+- **API tests** with Supertest (driven by Mocha) for each endpoint, with the Yahoo client stubbed out — 37 tests across `auth`, `grade`, `watchlist`, `compare`, and `history` routes (50 backend total).
+- **Component / helper tests** with Vitest + React Testing Library — 25 tests across the `grade` helpers, `<TickerSearch />`, `<AboutCard />`, `<Footer />`, and `<CandlestickFooter />`.
+- **Manual smoke test** across desktop (1280px) + mobile (360px) sizes — verified end-to-end via Playwright on every page.
 
 ## 13. Risks & Open Questions
 

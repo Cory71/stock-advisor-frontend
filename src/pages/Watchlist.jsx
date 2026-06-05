@@ -6,40 +6,9 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Table, Alert, Spinner, Form, Button, InputGroup, Badge } from 'react-bootstrap';
 import { apiFetch } from '../lib/apiFetch';
-
-// Bootstrap colour for a letter grade — matches the Grade Detail page.
-function gradeColor(grade) {
-  switch (grade) {
-    case 'A': return 'success';
-    case 'B': return 'primary';
-    case 'C': return 'warning';
-    case 'D': return 'warning';
-    case 'F': return 'danger';
-    default:  return 'secondary';
-  }
-}
-
-// Convert a letter grade to a number so we can compare two grades.
-function gradeValue(grade) {
-  switch (grade) {
-    case 'A': return 5;
-    case 'B': return 4;
-    case 'C': return 3;
-    case 'D': return 2;
-    case 'F': return 1;
-    default:  return null;
-  }
-}
-
-// Compare the added grade to the current grade and pick a label + colour.
-function gradeChange(added, current) {
-  const a = gradeValue(added);
-  const c = gradeValue(current);
-  if (a == null || c == null) return null;
-  if (c > a) return { label: 'Upgraded', symbol: '▲', variant: 'success' };
-  if (c < a) return { label: 'Downgraded', symbol: '▼', variant: 'danger' };
-  return { label: 'No change', symbol: '—', variant: 'secondary' };
-}
+import { gradeColor, gradeChange, formatPrice } from '../lib/grade';
+import { useAutoDismiss } from '../lib/useAutoDismiss';
+import { usePageTitle } from '../lib/usePageTitle';
 
 // Small reusable grade pill — uses the same colour scheme as the Grade Detail page.
 function GradeBadge({ grade }) {
@@ -47,15 +16,9 @@ function GradeBadge({ grade }) {
   return <Badge bg={gradeColor(grade)}>{grade}</Badge>;
 }
 
-// Format the price column — "$451.20 USD" if we have both, "$451.20" if no
-// currency, "—" if we don't have a cached price for this ticker yet.
-function formatPrice(price, currency) {
-  if (price == null) return '—';
-  const value = `$${price.toFixed(2)}`;
-  return currency ? `${value} ${currency}` : value;
-}
-
 function Watchlist() {
+  usePageTitle('Watchlist');
+
   const [items, setItems]     = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState('');
@@ -64,6 +27,9 @@ function Watchlist() {
   const [newTicker, setNewTicker]   = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [addInfo, setAddInfo]       = useState(null);
+
+  // Banner auto-dismisses after 5s.
+  useAutoDismiss(addInfo, setAddInfo);
 
   // Load the user's watchlist on mount.
   useEffect(() => {
@@ -179,10 +145,13 @@ function Watchlist() {
           <thead>
             <tr>
               <th>Ticker</th>
-              <th>Name</th>
-              <th>Last price</th>
-              <th>Added</th>
-              <th className="text-center">Grade at add</th>
+              {/* Lower-priority columns are hidden on phones (< 576px) so
+                  the essential ones (Ticker, Current, Change, Remove) all
+                  fit without horizontal scrolling. */}
+              <th className="d-none d-sm-table-cell">Name</th>
+              <th className="d-none d-sm-table-cell">Last price</th>
+              <th className="d-none d-sm-table-cell">Added</th>
+              <th className="d-none d-sm-table-cell text-center">Grade at add</th>
               <th className="text-center">Current</th>
               <th>Change</th>
               <th aria-label="Remove" />
@@ -196,10 +165,10 @@ function Watchlist() {
                   <td>
                     <Link to={`/grade/${item.ticker}`}>{item.ticker}</Link>
                   </td>
-                  <td className="text-muted">{item.name || '—'}</td>
-                  <td>{formatPrice(item.price, item.currency)}</td>
-                  <td>{new Date(item.createdAt).toLocaleDateString()}</td>
-                  <td className="text-center">
+                  <td className="d-none d-sm-table-cell text-muted">{item.name || '—'}</td>
+                  <td className="d-none d-sm-table-cell">{formatPrice(item.price, item.currency)}</td>
+                  <td className="d-none d-sm-table-cell">{new Date(item.createdAt).toLocaleDateString()}</td>
+                  <td className="d-none d-sm-table-cell text-center">
                     <GradeBadge grade={item.gradeAtAdd} />
                   </td>
                   <td className="text-center">

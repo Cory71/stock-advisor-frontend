@@ -6,6 +6,7 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import NavBar from './components/NavBar';
+import Footer from './components/Footer';
 import Home from './pages/Home';
 import GradeDetail from './pages/GradeDetail';
 import Watchlist from './pages/Watchlist';
@@ -42,6 +43,8 @@ function App() {
                 <Route path="/signup" element={<Signup />} />
               </Routes>
             </main>
+
+            <Footer />
           </AuthProvider>
         </ThemeProvider>
       </GoogleOAuthProvider>

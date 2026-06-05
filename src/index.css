@@ -1,10 +1,40 @@
 /* Global page reset. Bootstrap provides body background/colour via its
    --bs-body-bg / --bs-body-color variables — those change automatically when
-   we toggle data-bs-theme, so we don't override them here. */
+   we toggle data-bs-theme. */
 * {
   box-sizing: border-box;
 }
 
 body {
   margin: 0;
+}
+
+/* Sticky-when-short footer.
+   The full chain (html → body → #root) gets a min-height of the full viewport
+   so we always have at least one screen's worth of vertical space. Inside
+   that, #root becomes a flex column with <main> set to grow into any leftover
+   space — which pushes the footer to the bottom of the viewport on short
+   pages while still letting it sit naturally at the end of content on long
+   pages. */
+html,
+body,
+#root {
+  min-height: 100vh;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+}
+
+main {
+  flex: 1 0 auto;
+}
+
+/* Light-mode override: replace Bootstrap's pure-white body background with a
+   soft neutral grey so cards and other surfaces (which stay white) visually
+   lift off the page. Dark mode is left alone — Bootstrap's dark theme already
+   does this contrast nicely. */
+[data-bs-theme="light"] {
+  --bs-body-bg: #d1d5db;
 }
