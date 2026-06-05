@@ -2,6 +2,15 @@
 
 React web application for StockGrader, a web app that grades publicly traded stocks A–F based on five fundamental financial criteria sourced from Yahoo Finance.
 
+## Live demo
+
+- **App:** <https://stock-advisor-frontend.vercel.app>
+- **API:** <https://stock-advisor-backend-j9gw.onrender.com>
+
+> First request after ~15 min of idle may take 30–60 seconds because the
+> Render free tier spins the backend down to sleep. After it wakes up it's
+> snappy.
+
 ## Prerequisites
 
 - Node.js installed
