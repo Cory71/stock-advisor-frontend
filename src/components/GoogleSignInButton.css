@@ -1,0 +1,9 @@
+/* Google Identity Services renders the button as an iframe (420px) wrapped in
+   a positioned container (400px) and uses negative margins to fit it visually.
+   On production builds, the iframe's border becomes faintly visible against
+   the container's edge — the "double box" effect. Clip the container to its
+   bounds so only the inner button shows. */
+.google-signin-wrapper > div {
+  overflow: hidden;
+  border-radius: 4px;
+}

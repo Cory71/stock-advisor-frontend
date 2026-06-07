@@ -31,7 +31,6 @@ function Login() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    setError('');
     setSubmitting(true);
     try {
       const data = await apiFetch('/api/auth/login', {

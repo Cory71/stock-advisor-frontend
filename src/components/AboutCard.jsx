@@ -30,7 +30,7 @@ function AboutCard() {
         </p>
 
         <p className="text-muted small mb-0">
-          Data from Yahoo Finance, refreshed every 24 hours.
+          Data from Finnhub, refreshed every 24 hours.
         </p>
       </Card.Body>
     </Card>

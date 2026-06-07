@@ -1,6 +1,9 @@
 # StockGrader — Capstone Project Plan
 
 > **Repos:** [`stock-advisor-frontend`](https://github.com/Cory71/stock-advisor-frontend) (React + Vite) and [`stock-advisor-backend`](https://github.com/Cory71/stock-advisor-backend) (Express API). User-facing product name: **StockGrader**.
+>
+> **Live app:** <https://stock-advisor-frontend.vercel.app>
+> **Live API:** <https://stock-advisor-backend-j9gw.onrender.com>
 
 ## 1. Project Overview
 
@@ -88,8 +91,8 @@ Per the capstone requirements (React, Node.js, Express, MongoDB):
   - **Storage:** Frontend keeps the JWT in `localStorage`; every protected request sends it as `Authorization: Bearer <token>`. No sessions, no cookies, no `connect-mongo` — works cleanly across the Vercel/Render split.
 - **Data source:** Yahoo Finance via the [`yahoo-finance2`](https://www.npmjs.com/package/yahoo-finance2) npm package (unofficial but well-maintained — ~100k weekly downloads, active maintainers, ~13 years of community track record between it and its predecessor). Free, no API key, works for any US ticker.
 - **Provider abstraction:** All Yahoo calls live behind a thin `StockDataProvider` interface (one method for the income statement, one for the cash flow statement). The grading logic depends on the interface, not on Yahoo. If `yahoo-finance2` ever breaks unannounced, we can swap to Financial Modeling Prep ($22/mo Starter tier as the realistic paid fallback) by writing one new provider class — no changes to the grader, routes, or UI.
-- **Testing:** Jest + React Testing Library (frontend), Mocha + Chai (backend; Supertest for HTTP endpoint tests).
-- **Deployment:** Frontend on Vercel or Netlify; backend on Render or Railway; MongoDB Atlas for the DB.
+- **Testing:** Vitest + React Testing Library on the frontend (Vite-native, Jest-compatible syntax — chose Vitest over Jest because it integrates with the existing Vite config and runs faster). Mocha + Chai + Supertest on the backend, with `mongodb-memory-server` for isolation and `sinon` for stubbing the Yahoo provider.
+- **Deployment:** Frontend on **Vercel** (free hobby tier with SPA fallback via `vercel.json`); backend on **Render** (free web service); MongoDB Atlas free M0 cluster for the database. CORS locked down to the Vercel origin via the `CORS_ORIGIN` env var in production.
 
 ## 7. Architecture & Data Flow
 

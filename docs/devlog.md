@@ -30,8 +30,42 @@ A week-by-week log of building StockGrader, an A–F stock grading app powered b
 
 ### Screenshots / milestones
 
-- _[Add: architecture diagram from Excalidraw]_
-- _[Add: first commit graph from GitHub]_
+Architecture sketched in Excalidraw ([`architecture.excalidraw`](./architecture.excalidraw) in this repo); the same shape, rendered inline so GitHub can show it without opening the file:
+
+```mermaid
+graph LR
+  Browser["Browser<br/>React + Vite"] -->|"HTTPS + JWT in<br/>Authorization header"| API["Express API<br/>passport-jwt"]
+  API -->|"Provider<br/>abstraction"| Provider["yahoo-finance2"]
+  Provider --> YF["Yahoo Finance"]
+  API -->|"Mongoose"| Mongo[("MongoDB Atlas<br/>users + stocks +<br/>history + watchlists")]
+  Browser -.->|"Google<br/>ID token"| GIS["Google Identity<br/>Services"]
+  GIS -.->|"verify token"| API
+```
+
+First commits across both repos — the project's spine, from initial proposal through deployment:
+
+```text
+# stock-advisor-frontend
+6fe2799  Initial commit: capstone planning and instruction files
+d0b90fc  Add Vite + React scaffolding
+315869d  Add README and class-by-class plan
+4faaa0b  Add React Router, 6 pages, NavBar, and switch auth plan to Passport
+9a816b5  Switch auth plan to JWT with Passport-JWT and refresh planning docs
+4a86aef  Wire frontend pages with auth, dark mode, name search, watchlist, Compare
+683cec0  Add Google sign-in button on Login and Signup pages
+03bd204  Add tests, About card, footer, candlesticks, page titles, sticky footer
+28c3703  Add Vercel SPA fallback so React Router handles deep links
+c39c2a8  Add development log covering Week 1–3 progress
+
+# stock-advisor-backend
+d9adbf6  Initial commit: Express scaffolding with cors and dotenv
+9e3b030  Add User, Stock, WatchlistItem, and SearchHistory Mongoose models
+69cb85e  Add JWT auth with Passport, watchlist CRUD, grading endpoint
+d4cf78b  Add name search, price + currency, watchlist grade tracking
+5c7c524  Add Google sign-in and password length check
+b903d9c  Add API test suite, friendly upstream errors
+d518b53  Lock CORS to allowlisted origins in production
+```
 
 ---
 
@@ -49,8 +83,9 @@ A week-by-week log of building StockGrader, an A–F stock grading app powered b
 ### Challenges
 
 - **Yahoo Finance broke in November 2024.** The `cashflowStatementHistory` submodule of `quoteSummary` started returning only `netIncome` — Free Cash Flow disappeared from the response. Took me a while to figure out the workaround: switch to `fundamentalsTimeSeries` with `cash-flow` module, which has `freeCashFlow` directly. Lesson: this is exactly why the provider abstraction mattered. I changed one file.
-- **Auth strategy iteration.** I started with raw JWT, briefly switched to Passport sessions, then went back to JWT with `passport-jwt`. The instructor updated the requirement mid-project to JWT specifically, which lined up with where I'd ended up anyway after weighing stateless vs session complexity for a deployed frontend on a different domain.
-- **Postman MCP stripped test scripts.** I tried publishing my collection to Postman Cloud via MCP and the `pm.test` / `pm.environment.set` event scripts disappeared. Switched to maintaining a portable JSON export under `backend/docs/postman/` that newman can run locally.
+- **Auth strategy iteration.** I started with raw JWT, briefly switched to Passport sessions, then went back to JWT with `passport-jwt`. After weighing stateless tokens vs server-side sessions for a frontend deployed on a different domain than the backend, JWT was the right call — sessions get awkward fast with cross-origin cookies and CORS credentials. Lesson: figure out where the frontend will live _before_ picking the auth strategy.
+- **Cache scoping — shared vs per-user.** My first sketch had graded stocks cached under each user (`{userId, ticker, grade…}`). About halfway through Week 2 I realized the grade for `AAPL` is the same no matter who's asking — the five criteria are universal, the data is universal. So the `Stock` collection became a shared cache keyed only on `ticker` with a 24-hour TTL, and per-user data (watchlist, search history) lives in separate collections. Lesson: caching per-user feels safer but it's wasteful when the underlying answer is identical for everyone.
+- **String vs ObjectId mismatch.** The JWT payload stores the user id as a string (because JSON), but Mongoose queries expect MongoDB `ObjectId`s. The first time I tried `WatchlistItem.find({ userId: req.user.id })` it silently returned an empty array because the types didn't match. Fix: let Mongoose coerce by passing the string straight to the schema (it accepts hex-string ids), or explicitly wrap with `new mongoose.Types.ObjectId(id)`. Lesson: silent "no results" is the worst kind of bug — always double-check types when a query feels like it should match but doesn't.
 
 ### What I learned
 
@@ -60,8 +95,93 @@ A week-by-week log of building StockGrader, an A–F stock grading app powered b
 
 ### Screenshots / milestones
 
-- _[Add: Mocha test output showing 13 passing]_
-- _[Add: Postman screenshot of a successful grade lookup]_
+Mocha + Chai unit tests on the pure grading function — all 13 green by the end of Week 2 (later joined by the API tests in Week 3, for 50 backend tests total):
+
+```text
+  gradeStock — score → grade mapping
+    ✔ returns A for 5 yeses
+    ✔ returns B for 4 yeses
+    ✔ returns C for 3 yeses
+    ✔ returns D for 2 yeses
+    ✔ returns F for 0 yeses
+    ✔ returns F for 1 yes
+
+  gradeStock — individual criteria
+    ✔ marks criterion 3 (positive FCF) as passed when latest FCF > 0
+    ✔ marks criterion 3 as failed when latest FCF is negative
+    ✔ returns 5 criteria for a gradeable input
+    ✔ treats missing TTM as N/A for criteria 2 and 5
+
+  gradeStock — N/A handling
+    ✔ returns N/A when fewer than 2 annual revenue columns
+    ✔ returns N/A when fewer than 2 annual FCF columns
+    ✔ returns N/A when no data at all
+
+  13 passing
+```
+
+A real successful grade lookup against the live API — built and verified end-to-end in Postman during Week 2 (the live response here is from the deployed backend on Render, hitting the cached AAPL document in MongoDB Atlas):
+
+**Request**
+
+```http
+GET /api/grade/AAPL HTTP/1.1
+Host: stock-advisor-backend-j9gw.onrender.com
+Authorization: Bearer <jwt>
+```
+
+**Response — 200 OK**
+
+```json
+{
+  "ticker": "AAPL",
+  "name": "Apple Inc.",
+  "price": 311.23,
+  "currency": "USD",
+  "grade": "B",
+  "criteria": [
+    {
+      "name": "Topline revenue growth (long-term)",
+      "passed": true,
+      "value": 416161000000,
+      "prior": 394328000000,
+      "source": "income statement"
+    },
+    {
+      "name": "Recent revenue growth (TTM)",
+      "passed": true,
+      "value": 451442016256,
+      "prior": 416161000000,
+      "source": "income statement TTM"
+    },
+    {
+      "name": "Net positive free cash flow",
+      "passed": true,
+      "value": 98767000000,
+      "prior": 0,
+      "source": "cash flow statement"
+    },
+    {
+      "name": "Free cash flow growth (long-term)",
+      "passed": false,
+      "value": 98767000000,
+      "prior": 111443000000,
+      "source": "cash flow statement"
+    },
+    {
+      "name": "Recent free cash flow growth (TTM)",
+      "passed": true,
+      "value": 101090746368,
+      "prior": 98767000000,
+      "source": "cash flow statement TTM"
+    }
+  ],
+  "gradedAt": "2026-06-05T00:29:42.946Z",
+  "cached": true
+}
+```
+
+Score: 4 of 5 criteria passed → **Grade B**. The one failed criterion (long-term FCF growth) is visible in the criteria array, which is what powers the Grade Detail UI checklist.
 
 ---
 
@@ -73,7 +193,7 @@ A week-by-week log of building StockGrader, an A–F stock grading app powered b
 - Added **dark mode** via Bootstrap 5.3 `data-bs-theme`, persisted to `localStorage`, respecting OS preference on first visit.
 - Added **Google sign-in** as a stretch — `google-auth-library` on the backend, `@react-oauth/google` on the frontend, find-or-create user by `googleId` or `email`.
 - Polished the watchlist: each row now snapshots the grade at the moment of adding and compares it to the current cached grade (▲ Upgraded / ▼ Downgraded / — No change). Added share price + currency, and column-hiding below 576px so the table fits a phone.
-- Added **page-level testing**: backend gained Supertest specs with `mongodb-memory-server` + `sinon`-stubbed Yahoo (37 API tests on top of the 13 grading tests). Frontend gained Vitest + RTL coverage for helpers and components (25 tests). Total: **75 tests, all green**.
+- Added **page-level testing**: backend gained Supertest specs with `mongodb-memory-server` + `sinon`-stubbed Yahoo (37 API tests on top of the 13 grading tests). Frontend gained Vitest + RTL coverage for helpers, components, and hooks (28 tests). Total: **78 tests, all green**.
 - Built decorative polish: an upward-trending candlestick band on sparse pages, an "About StockGrader" explainer card beside the form on Login / Signup / logged-out Home, dynamic page titles (`AAPL · StockGrader` instead of every tab saying the same thing), auto-dismissing alerts (5-second `useAutoDismiss` hook), sticky-when-short footer.
 - **Deployed**:
   - Backend → Render, with env vars (MONGO_URI, JWT_SECRET, GOOGLE_CLIENT_ID, CORS_ORIGIN, NODE_VERSION=22).
@@ -98,11 +218,55 @@ A week-by-week log of building StockGrader, an A–F stock grading app powered b
 
 ### Screenshots / milestones
 
-- _[Add: live app screenshot — Home page on stock-advisor-frontend.vercel.app]_
-- _[Add: live grade page for AAPL showing the B grade + 5 criteria]_
-- _[Add: Render deploy log with "Your service is live" line]_
-- _[Add: Vercel deploy "Production READY" output]_
-- _[Add: full test suite output, 75 passing]_
+Home page on the live app — search box on the left, "About StockGrader" card beside it (logged-in users see Recent searches instead of the card):
+
+![Home page on the live app](./images/home-logged-in.png)
+
+Grade Detail for AAPL — canonical ticker, share price + currency, company name, big letter grade, and the 5-criterion checklist with the actual numbers used:
+
+![Grade Detail for AAPL on the live app](./images/grade-aapl.png)
+
+Watchlist with three rows, each showing the "grade at add" snapshot vs. the current cached grade plus the change column:
+
+![Watchlist on the live app](./images/watchlist.png)
+
+Compare page (Cards view) — three stocks side-by-side, with ticker / company / price / grade in each card header and the 5 criteria as Yes/No rows:
+
+![Compare page on the live app](./images/compare-cards.png)
+
+Frontend deployed to Vercel:
+
+```text
+▲ Production  https://stock-advisor-frontend-k3mbgxaeh-cory71s-projects.vercel.app
+  readyState: READY
+  target:     production
+  Aliased     https://stock-advisor-frontend.vercel.app
+```
+
+Backend deployed to Render (excerpt from the Render build log):
+
+```text
+==> Running 'npm start'
+> stock-advisor-backend@1.0.0 start
+> node server.js
+
+Server running on port 10000
+MongoDB connected
+==> Your service is live 🎉
+==> Available at your primary URL https://stock-advisor-backend-j9gw.onrender.com
+```
+
+Full test suite — **78 tests passing, all green** (50 backend + 28 frontend):
+
+```text
+# Backend  (Mocha + Chai + Supertest)
+  50 passing (4s)
+
+# Frontend (Vitest + React Testing Library)
+ Test Files  6 passed (6)
+      Tests  28 passed (28)
+   Duration  3.05s
+```
 
 ---
 

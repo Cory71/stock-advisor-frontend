@@ -34,3 +34,4 @@ Thumbs.db
 # Course-provided materials and personal notes (not project deliverables)
 course-materials/
 git-workflow.md
+.vercel

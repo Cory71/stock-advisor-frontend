@@ -189,38 +189,50 @@ Goal by end of class: a complete, tested backend — auth (email/password + JWT)
 
 **Devlog**
 
-- [ ] Submit Devlog entry covering progress so far
+- [x] Submit Devlog entry covering progress so far
 
 ---
 
 ### Class 7 — Deployment
 
+**Live URLs:** Frontend <https://stock-advisor-frontend.vercel.app> · Backend <https://stock-advisor-backend-j9gw.onrender.com>
+
 **Production setup**
 
-- [ ] Create a production MongoDB Atlas cluster (or separate database)
-- [ ] Add production env vars on Render: `JWT_SECRET`, `MONGO_URI`, CORS origin; on Vercel: `VITE_API_URL` (add `GOOGLE_CLIENT_ID` + `VITE_GOOGLE_CLIENT_ID` only if Google sign-in is implemented — see Stretch Features)
+- [x] Reused the existing `Shopping-App-Cluster` for the production database; the `stockgrader` database lives inside it (a separate cluster would have been cleaner but the same one is acceptable for a capstone since the data is identical)
+- [x] Added production env vars on Render: `MONGO_URI`, `JWT_SECRET`, `GOOGLE_CLIENT_ID`, `CORS_ORIGIN`, `NODE_VERSION=22`; on Vercel: `VITE_API_URL`, `VITE_GOOGLE_CLIENT_ID`
+- [x] MongoDB Atlas IP allowlist set to `0.0.0.0/0` so Render's rotating free-tier IPs can reach the cluster
+- [x] Added the Vercel URL to the Google OAuth client's Authorised JavaScript Origins
 
 **Deploy backend → Render**
 
-- [ ] Create Render web service from the `stock-advisor-backend` repo
-- [ ] Wire env vars
-- [ ] Confirm `GET /` responds in production
-- [ ] Note Render free-tier cold-start (30–60s) in the demo plan
+- [x] Created Render web service from the `stock-advisor-backend` repo
+- [x] Wired env vars (5 of them)
+- [x] Confirmed `GET /` responds in production — returns `{"message":"Server is running"}`
+- [x] Noted Render free-tier cold-start (30–60s) in the README + devlog so it doesn't surprise anyone
 
 **Deploy frontend → Vercel**
 
-- [ ] Import `stock-advisor-frontend` into Vercel
-- [ ] Set `VITE_API_BASE_URL` to the Render backend URL
-- [ ] Confirm a real grade lookup works end-to-end in production
+- [x] Imported `stock-advisor-frontend` into Vercel (CLI deploy; project linked under `cory71s-projects/stock-advisor-frontend`)
+- [x] Set `VITE_API_URL` to the Render backend URL
+- [x] Added `vercel.json` SPA rewrite so direct deep links (e.g. `/signup`, `/grade/AAPL`) hit `index.html` and React Router takes over
+- [x] Confirmed a real grade lookup works end-to-end in production — Smoke Test user signed up live, graded AAPL, got `B` with all 5 criteria and `$311.23 USD` price
+
+**Production hardening**
+
+- [x] Backend CORS locked down to the Vercel origin via the `CORS_ORIGIN` env var (instead of allowing every origin)
+- [x] All secrets live in Render/Vercel dashboards; `.env` files remain gitignored
 
 **Docs**
 
-- [ ] Finalize frontend README (overview, features, install, run, env vars, live URL)
-- [ ] Finalize backend README (routes list, env vars, run, deploy notes)
+- [x] Finalised frontend README — Node 22 prerequisite, Atlas walkthrough cross-link, `.env` template with Google sign-in marked optional, troubleshooting table, live URLs at the top
+- [x] Finalised backend README — Node 22 prerequisite, MongoDB Atlas walkthrough (6 steps), JWT secret generation one-liner, IP allowlist gotcha, troubleshooting table, live URLs at the top
+- [x] Refreshed `stock-advisor-plan.md`, `wireframes.md`, and `classplan.md` to match what actually shipped
+- [x] Wrote `docs/devlog.md` — Week 1/2/3 narrative with challenges + learnings, embedded Mermaid architecture diagram, live API request/response demo, commit timeline, four live-app screenshots in `docs/images/`
 
 **End-of-class check**
 
-- [ ] App is live, reachable by URL, signed-in lookup works
+- [x] App is live, reachable by URL, signed-in lookup works — smoke-tested via Playwright against the production URLs
 
 ---
 

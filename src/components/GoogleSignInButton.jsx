@@ -14,6 +14,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../lib/apiFetch';
 import { useAutoDismiss } from '../lib/useAutoDismiss';
+import './GoogleSignInButton.css';
 
 function GoogleSignInButton() {
   const { login } = useAuth();
@@ -48,12 +49,14 @@ function GoogleSignInButton() {
   }
 
   return (
-    <div className="mb-3">
+    <div className="mb-3 google-signin-wrapper">
       {error && <Alert variant="danger">{error}</Alert>}
       <GoogleLogin
         onSuccess={handleCredential}
         onError={handleError}
         useOneTap={false}
+        width="400"
+        logo_alignment="center"
       />
     </div>
   );
