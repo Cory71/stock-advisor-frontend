@@ -186,6 +186,12 @@ function GradeDetail() {
         <Alert variant="secondary">{data.reason}</Alert>
       )}
 
+      {/* Sector caveat shown alongside a real grade when free cash flow is only
+          a rough proxy for the business (REITs, insurers, utilities) */}
+      {data.note && (
+        <Alert variant="warning">{data.note}</Alert>
+      )}
+
       {/* Criteria — only render when we have any */}
       {Array.isArray(data.criteria) && data.criteria.length > 0 && (
         <>

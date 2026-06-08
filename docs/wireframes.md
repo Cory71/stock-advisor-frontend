@@ -75,11 +75,11 @@ Six screens. For each one: the main element, the actions a user can take, and th
 |   [ ________________________ ]    |    • Recent rev (TTM)    |
 |                                   |    • Positive FCF        |
 |   Password                        |    • FCF growth (LT)     |
-|   [ ________________________ ]    |    • Recent FCF (TTM)    |
-|                                   |                          |
+|   [ __________________ ] [o]      |    • Recent FCF (TTM)    |
+|                          ^eye     |                          |
 |   [   Log in   ]                  |   Score: 5 = A · 0–1 = F |
 |                                   |                          |
-|   Don't have an account? Sign up  |   Data from Yahoo,       |
+|   Don't have an account? Sign up  |   Data from Finnhub,     |
 |                                   |   refreshed every 24h.   |
 |                                                              |
 |       ░░░▓░▓░░▓░░▓▓░░▓░░░▓░░▓░  <- candlestick band         |
@@ -88,8 +88,8 @@ Six screens. For each one: the main element, the actions a user can take, and th
 +--------------------------------------------------------------+
 ```
 
-- **Main:** Email + password form on the left, "What is StockGrader?" explainer card on the right.
-- **Actions:** submit form, click Google button, click "Sign up" link.
+- **Main:** Email + password form on the left, "What is StockGrader?" explainer card on the right. The password field has a **show/hide eye toggle** (`[o]`) at its trailing edge, styled to match the input.
+- **Actions:** submit form, click Google button, click the eye to reveal/hide the password, click "Sign up" link.
 - **Layout:** form + card side-by-side at ≥768px; stack vertically on phones (form first).
 - **States:**
   - *happy* → navigate to Home.
@@ -121,8 +121,8 @@ Six screens. For each one: the main element, the actions a user can take, and th
 |   [ ________________________ ]    |    • Recent FCF (TTM)    |
 |                                   |                          |
 |   Password (≥ 6 characters)       |   Score: 5 = A · 0–1 = F |
-|   [ ________________________ ]    |                          |
-|                                   |   Data from Yahoo,       |
+|   [ __________________ ] [o]      |                          |
+|                          ^eye     |   Data from Finnhub,     |
 |   [  Create account  ]            |   refreshed every 24h.   |
 |                                                              |
 |   Already registered? Log in                                 |
@@ -133,8 +133,8 @@ Six screens. For each one: the main element, the actions a user can take, and th
 +--------------------------------------------------------------+
 ```
 
-- **Main:** Registration form on the left, "What is StockGrader?" explainer card on the right.
-- **Actions:** submit form, click Google button, click "Log in" link.
+- **Main:** Registration form on the left, "What is StockGrader?" explainer card on the right. The password field has a **show/hide eye toggle** (`[o]`) at its trailing edge, styled to match the input.
+- **Actions:** submit form, click Google button, click the eye to reveal/hide the password, click "Log in" link.
 - **Layout:** form + card side-by-side at ≥768px; stack vertically on phones.
 - **States:**
   - *happy* → log user in automatically + navigate to Home.
@@ -197,7 +197,7 @@ Home has two layouts depending on whether the user is signed in. Logged-in users
 |                                   |                          |
 |                                   |   Score: 5 = A · 0–1 = F |
 |                                   |                          |
-|                                   |   Data from Yahoo,       |
+|                                   |   Data from Finnhub,     |
 |                                   |   refreshed every 24h.   |
 |                                                              |
 |       ░░░▓░▓░░▓░░▓▓░░▓░░░▓░░▓░  <- candlestick band         |
@@ -246,10 +246,13 @@ The URL accepts either a ticker (`/grade/AAPL`) or a company name (`/grade/Apple
 +--------------------------------------------------------+
 ```
 
-- **Main:** Canonical ticker + share price + company name header, letter grade card, 5-criteria checklist with the actual numbers.
+- **Main:** Canonical ticker + share price + company name header, letter grade card, 5-criteria checklist with the actual numbers. Two optional banners sit just below the grade card:
+  - an **N/A reason** (grey) when the stock can't be graded — e.g. *"Free cash flow can't be computed … normal for banks, insurers, and other financial firms"* or *"Financial data looks outdated …"*;
+  - a **sector caveat** (amber) on a real grade where free cash flow is only a rough proxy — REITs, insurers, utilities (e.g. *"This is a REIT … judged on Funds From Operations …"*).
 - **Actions:** "Add to watchlist" → POST `/api/watchlist` then show inline success/failure alert.
 - **States:**
-  - *happy* → grade + criteria render.
+  - *happy* → grade + criteria render (with a sector caveat banner for REITs/insurers/utilities).
+  - *N/A* → letter card shows `N/A` and the grey reason banner explains why (stale data, or a sector the revenue/FCF model doesn't fit). No criteria list.
   - *loading* → spinner with "Grading `<ticker>`…".
   - *empty* → N/A (a query is always specified by URL).
   - *error (logged out)* → friendly info alert: "Please log in to grade stocks" with Log in / Sign up buttons (no scary heading).

@@ -7,7 +7,9 @@
 
 ## 1. Project Overview
 
-A web application that grades publicly traded stocks on an **A–F scale** based on five fundamental financial criteria sourced from Yahoo Finance. The user enters a ticker symbol (e.g. `AAPL`), the app fetches the relevant financial data, evaluates the five criteria, and returns a clear letter grade with the underlying yes/no answers and supporting numbers.
+A web application that grades publicly traded stocks on an **A–F scale** based on five fundamental financial criteria sourced from [Finnhub](https://finnhub.io/). The user enters a ticker symbol (e.g. `AAPL`), the app fetches the relevant financial data, evaluates the five criteria, and returns a clear letter grade with the underlying yes/no answers and supporting numbers.
+
+> The project originally used Yahoo Finance via `yahoo-finance2`; it migrated to Finnhub in Week 4 after Yahoo's unofficial endpoints began rate-limiting the deployed backend. The thin provider abstraction (below) made the swap a one-file change. See [`devlog.md`](./devlog.md) Week 4.
 
 The goal is to give a non-expert investor a fast, opinionated, easy-to-read read on a stock's fundamental health without having to interpret financial statements themselves.
 
@@ -19,7 +21,7 @@ The goal is to give a non-expert investor a fast, opinionated, easy-to-read read
 
 ## 3. The Grading Algorithm
 
-All five criteria map directly to columns/rows on the Yahoo Finance income statement and cash flow statement pages (e.g. `finance.yahoo.com/quote/AAPL/cash-flow`), so the app's job is to read the same numbers a human user would and apply the rules below.
+All five criteria come from a company's income statement and cash flow statement — the same numbers a human user would read off a stock's financials — applying the rules below. Finnhub returns these as raw XBRL concepts from SEC filings, which the provider normalizes into annual revenue, free cash flow, and TTM figures.
 
 ### 3.1 The five criteria (each is a yes/no)
 
@@ -29,7 +31,9 @@ All five criteria map directly to columns/rows on the Yahoo Finance income state
 4. **Free cash flow growth (long-term):** Is the **latest** annual Free Cash Flow greater than the **earliest** annual Free Cash Flow available?
 5. **Recent free cash flow growth (last year):** Is the **TTM** Free Cash Flow column higher than the most recent full fiscal year?
 
-**"Growth" rule (criteria 1 and 4):** "latest annual > earliest annual" over the years Yahoo provides. We chose this over strict every-year-up because it still rewards companies that had a single down year (e.g. Apple's 2018→2019 free cash flow dip) without giving them a free pass on their overall direction.
+**"Growth" rule (criteria 1 and 4):** "latest annual > earliest annual" over the most recent **5** annual periods (capped so the long-term window is the same for every stock). We chose this over strict every-year-up because it still rewards companies that had a single down year (e.g. Apple's 2018→2019 free cash flow dip) without giving them a free pass on their overall direction.
+
+**Free cash flow** = operating cash flow − capital expenditure. Finnhub reports CapEx as a positive amount, so FCF subtracts its magnitude. **TTM** is derived from quarterly (YTD) filings: `TTM = current YTD + (prior-year annual − prior-year same-period YTD)`.
 
 ### 3.2 Score → grade mapping
 
@@ -52,11 +56,20 @@ For every graded stock the UI shows:
 - All five criteria as a checklist with ✓ / ✗.
 - The actual numbers used for each check (so the user can verify and learn).
 - The data source / "as of" date.
+- When applicable, a short **reason** (why a stock is N/A) or a **sector caveat note** (see §3.4).
+
+### 3.4 Data-quality safeguards
+
+Real-world provider data is messy, so the grader guards against misleading output:
+
+- **Freshness guard:** if the most recent annual report is more than ~2 years old (measured from its period-end date), the data likely belongs to a defunct SEC filer — e.g. a ticker that changed hands. The stock is returned **N/A** with an explanatory `reason` rather than a stale grade.
+- **Sector fit:** banks, insurers, and other financial firms have no capital expenditure, so free cash flow can't be computed — they return **N/A** with a `reason`. REITs, insurers, and utilities that *do* grade carry a `note` caveat, because revenue/FCF is only a rough proxy for those business models (they're judged on FFO, book value, regulated returns, etc.).
+- **Concept robustness:** revenue uses the largest matching XBRL concept (avoids grabbing a sub-line), with a fallback for filers that only report gross "including assessed tax" revenue; CapEx matches a range of us-gaap concept variants across industries.
 
 ## 4. Core Features (MVP)
 
 - **User accounts:** Email/password sign-up and login **plus Google sign-in** via Google Identity Services. Both paths end at the same signed JWT. All history and watchlists are scoped per-user.
-- **Ticker or name lookup:** Enter a ticker (`AAPL`) **or a company name** (`Apple`); the backend resolves names to canonical tickers via Yahoo's search endpoint.
+- **Ticker or name lookup:** Enter a ticker (`AAPL`) **or a company name** (`Apple`); the backend resolves names to canonical tickers via Finnhub's search endpoint.
 - **Grade card:** Canonical ticker, company name, share price + currency, letter grade, and 5-criteria breakdown with the raw numbers used.
 - **Saved watchlist:** Add a ticker; each row tracks the grade at the moment it was added vs. the current cached grade, with an upgrade / downgrade / no-change indicator, plus the company name and last known price.
 - **Recent searches / history:** Last 20 tickers the user looked up (per user). Recent search rows also show the company name beside the ticker.
@@ -89,18 +102,18 @@ Per the capstone requirements (React, Node.js, Express, MongoDB):
   - **Google sign-in:** the official [Google Identity Services](https://developers.google.com/identity/gsi/web) button on the frontend returns a Google ID token; the backend verifies it with [`google-auth-library`](https://www.npmjs.com/package/google-auth-library), either creates a user (first-time Google login) or finds the existing one (matched on email or `googleId`), and issues our own JWT.
   - **Verification:** Protected routes use [Passport.js](https://www.passportjs.org/) with the [`passport-jwt`](https://www.passportjs.org/packages/passport-jwt/) strategy. Passport reads the `Authorization: Bearer <token>` header, verifies the signature with `JWT_SECRET`, looks up the user by `payload.id`, and attaches the full Mongoose user document (minus `passwordHash`) to `req.user`.
   - **Storage:** Frontend keeps the JWT in `localStorage`; every protected request sends it as `Authorization: Bearer <token>`. No sessions, no cookies, no `connect-mongo` — works cleanly across the Vercel/Render split.
-- **Data source:** Yahoo Finance via the [`yahoo-finance2`](https://www.npmjs.com/package/yahoo-finance2) npm package (unofficial but well-maintained — ~100k weekly downloads, active maintainers, ~13 years of community track record between it and its predecessor). Free, no API key, works for any US ticker.
-- **Provider abstraction:** All Yahoo calls live behind a thin `StockDataProvider` interface (one method for the income statement, one for the cash flow statement). The grading logic depends on the interface, not on Yahoo. If `yahoo-finance2` ever breaks unannounced, we can swap to Financial Modeling Prep ($22/mo Starter tier as the realistic paid fallback) by writing one new provider class — no changes to the grader, routes, or UI.
-- **Testing:** Vitest + React Testing Library on the frontend (Vite-native, Jest-compatible syntax — chose Vitest over Jest because it integrates with the existing Vite config and runs faster). Mocha + Chai + Supertest on the backend, with `mongodb-memory-server` for isolation and `sinon` for stubbing the Yahoo provider.
+- **Data source:** [Finnhub](https://finnhub.io/) via its REST API (official, free tier, 60 calls/minute with an API key). Endpoints used: `/quote` (price), `/stock/profile2` (name, currency, industry), `/stock/financials-reported` (annual + quarterly XBRL financials), `/search` (name→ticker). Accessed with the built-in global `fetch` — no SDK dependency.
+- **Provider abstraction:** All data-source calls live behind a thin provider interface (`getStockData`, `resolveTicker`). The grading logic depends on the interface, not the provider. This was exercised for real in Week 4: migrating from `yahoo-finance2` to Finnhub meant writing one new file (`finnhubProvider.js`) — the grader, routes, and tests were untouched.
+- **Testing:** Vitest + React Testing Library on the frontend (Vite-native, Jest-compatible syntax — chose Vitest over Jest because it integrates with the existing Vite config and runs faster). Mocha + Chai + Supertest on the backend, with `mongodb-memory-server` for isolation and `sinon` for stubbing the Finnhub provider.
 - **Deployment:** Frontend on **Vercel** (free hobby tier with SPA fallback via `vercel.json`); backend on **Render** (free web service); MongoDB Atlas free M0 cluster for the database. CORS locked down to the Vercel origin via the `CORS_ORIGIN` env var in production.
 
 ## 7. Architecture & Data Flow
 
 ```text
-[ React UI ]  --HTTP + Authorization: Bearer <jwt>-->  [ Express API + passport-jwt ]  --[ StockDataProvider ]--> [ yahoo-finance2 ] --> [ Yahoo Finance ]
-       |                                                    |                              (interface;
-       |                                                    |                               FMP swap-in
-       |                                                    |                               if needed)
+[ React UI ]  --HTTP + Authorization: Bearer <jwt>-->  [ Express API + passport-jwt ]  --[ provider interface ]--> [ finnhubProvider ] --> [ Finnhub API ]
+       |                                                    |                              (swap-in any
+       |                                                    |                               data source by
+       |                                                    |                               writing one file)
        |                                                    |
        |                                                    +--verify ID token--> [ Google OAuth ]
        |                                                    |
@@ -121,7 +134,7 @@ Request flow for a grade lookup:
 1. User submits ticker in the React UI.
 2. Frontend calls `GET /api/grade/:ticker`.
 3. Backend checks MongoDB for a recent cached result (e.g. < 24h old).
-4. If miss, fetch income statement + cash flow statement from Yahoo Finance.
+4. If miss, fetch quote + profile + annual/quarterly financials from Finnhub.
 5. Run the grading function over the data → produce 5 booleans + numbers + letter grade.
 6. Persist the result in MongoDB and return JSON to the frontend.
 
@@ -136,11 +149,13 @@ Request flow for a grade lookup:
 
 - **`stocks`** — shared cache of graded results (not per-user, since the underlying numbers are the same for everyone)
   - `ticker` (string, unique-indexed)
-  - `name` (string) — company name as Yahoo reports it (e.g. "Apple Inc."). Optional on legacy docs.
-  - `price` (number) — last known share price from `regularMarketPrice`. Optional on legacy docs.
+  - `name` (string) — company name as the provider reports it (e.g. "Apple Inc."). Optional on legacy docs.
+  - `price` (number) — last known share price from Finnhub's `/quote`. Optional on legacy docs.
   - `currency` (string) — ISO code the price is quoted in (e.g. `USD`, `CAD`, `EUR`).
-  - `grade` (A/B/C/D/F)
+  - `grade` (A/B/C/D/F/N/A)
   - `criteria` (array of 5 objects: `{ name, passed, value, prior, source }`)
+  - `reason` (string) — set when the stock is N/A (stale data, or a sector the model doesn't fit)
+  - `note` (string) — sector caveat shown alongside a real grade (REITs, insurers, utilities)
   - `rawData` (raw revenue & free cash flow snapshots, including TTM)
   - `gradedAt` (date)
 
@@ -168,7 +183,7 @@ Auth (JWT-based):
 
 Grading:
 
-- `GET /api/grade/:query` → graded result for a ticker **or company name** (auth required; resolves names via Yahoo search, records to user's history).
+- `GET /api/grade/:query` → graded result for a ticker **or company name** (auth required; resolves names via Finnhub search, records to user's history).
 - `GET /api/compare?tickers=AAPL,MSFT,GOOG` → graded results for 2–3 tickers or names (auth required; per-ticker errors don't break the response).
 
 User data:
@@ -193,26 +208,26 @@ See [`classplan.md`](./classplan.md) for the live class-by-class tracker.
 
 ## 12. Testing Strategy
 
-Backend uses **Mocha + Chai + Supertest** with `mongodb-memory-server` for isolation and `sinon` to stub the Yahoo provider. Frontend uses **Vitest + React Testing Library** (Vite-native, same syntax as Jest).
+Backend uses **Mocha + Chai + Supertest** with `mongodb-memory-server` for isolation and `sinon` to stub the Finnhub provider. Frontend uses **Vitest + React Testing Library** (Vite-native, same syntax as Jest).
 
-- **Unit tests** on the grading function (Mocha + Chai) — 13 tests covering each criterion + the score→grade mapping + N/A edge cases.
-- **API tests** with Supertest (driven by Mocha) for each endpoint, with the Yahoo client stubbed out — 37 tests across `auth`, `grade`, `watchlist`, `compare`, and `history` routes (50 backend total).
-- **Component / helper tests** with Vitest + React Testing Library — 25 tests across the `grade` helpers, `<TickerSearch />`, `<AboutCard />`, `<Footer />`, and `<CandlestickFooter />`.
+- **Unit tests** on the grading function (Mocha + Chai) — 28 tests covering each criterion, the score→grade mapping, the freshness guard, sector caveats, and N/A edge cases.
+- **API tests** with Supertest (driven by Mocha) for each endpoint, with the Finnhub client stubbed out — 37 tests across `auth`, `grade`, `watchlist`, `compare`, and `history` routes (65 backend total).
+- **Component / helper tests** with Vitest + React Testing Library — 32 tests across the `grade` helpers, `<TickerSearch />`, `<AboutCard />`, `<Footer />`, `<CandlestickFooter />`, and `<PasswordInput />`.
 - **Manual smoke test** across desktop (1280px) + mobile (360px) sizes — verified end-to-end via Playwright on every page.
 
 ## 13. Risks & Open Questions
 
 ### Decided
 
-- **Cash flow definition:** Free Cash Flow (the "Free Cash Flow" row on Yahoo's cash flow statement).
+- **Cash flow definition:** Free Cash Flow = operating cash flow − capital expenditure (computed from the provider's reported cash-flow figures; Finnhub reports CapEx as a positive amount, so we subtract its magnitude).
 - **Zero yeses = F.**
 - **User accounts:** Login is part of the MVP, not stretch.
 - **Growth rule for long-term criteria (1 and 4):** "latest annual > earliest annual" over the available years.
 - **Platform:** Web app (React). The capstone instructions allow React or React Native; we're choosing web for simpler deploy/demo, and the responsive layout will still work on a phone browser.
 - **App name:** **StockGrader**.
-- **Data source:** `yahoo-finance2` (free, any ticker, no API key). Accessed through a `StockDataProvider` interface so a paid fallback (FMP Starter, $22/mo) can be dropped in without touching grading or UI code.
+- **Data source:** **Finnhub** (official REST API, free tier, API key, 60 calls/min). Accessed through a provider interface so the data source can be swapped by writing one file — which is exactly how we migrated off `yahoo-finance2` in Week 4 when its unofficial endpoints began rate-limiting the deployed backend.
 
 ### Ongoing risks
 
-- **Yahoo Finance reliability:** `yahoo-finance2` is unofficial and can break with little notice. We'll handle this with: (a) MongoDB caching so a brief upstream outage doesn't take the app down for previously-graded tickers, (b) a clear "data unavailable for this ticker, try again later" UI state, and (c) the provider abstraction described above as our escape hatch.
+- **Provider data quality:** Finnhub returns SEC filings as raw XBRL concepts, which vary by filer and occasionally map a ticker to a stale/defunct entity. We handle this with: (a) MongoDB caching so a brief upstream issue doesn't take the app down for previously-graded tickers, (b) a freshness guard + sector-fit checks that return a clear N/A `reason` instead of a wrong grade, and (c) the provider abstraction as our escape hatch if we ever need to switch sources again.
 - **Tickers with insufficient history:** Some newer or thinly-reported companies may not have enough annual data for criteria 1 and 4. We'll need a minimum-data threshold (e.g. at least 2 annual columns) and a graceful "not enough history to grade" message.

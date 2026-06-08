@@ -11,6 +11,7 @@ import { usePageTitle } from '../lib/usePageTitle';
 import GoogleSignInButton from '../components/GoogleSignInButton';
 import CandlestickFooter from '../components/CandlestickFooter';
 import AboutCard from '../components/AboutCard';
+import PasswordInput from '../components/PasswordInput';
 
 function Login() {
   usePageTitle('Log in');
@@ -79,11 +80,11 @@ function Login() {
 
         <Form.Group className="mb-3" controlId="loginPassword">
           <Form.Label>Password</Form.Label>
-          <Form.Control
-            type="password"
+          <PasswordInput
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            autoComplete="current-password"
           />
         </Form.Group>
 

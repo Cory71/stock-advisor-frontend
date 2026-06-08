@@ -1,6 +1,6 @@
 # StockGrader — Development Log
 
-A week-by-week log of building StockGrader, an A–F stock grading app powered by Yahoo Finance fundamentals. Captures the work done, the obstacles hit, and what was learned along the way.
+A week-by-week log of building StockGrader, an A–F stock grading app powered by Finnhub fundamentals (originally built on Yahoo Finance — the migration is covered in Week 4). Captures the work done, the obstacles hit, and what was learned along the way.
 
 > **Repos:** [`stock-advisor-frontend`](https://github.com/Cory71/stock-advisor-frontend) · [`stock-advisor-backend`](https://github.com/Cory71/stock-advisor-backend)
 > **Live app:** <https://stock-advisor-frontend.vercel.app>
@@ -270,9 +270,65 @@ Full test suite — **78 tests passing, all green** (50 backend + 28 frontend):
 
 ---
 
+## Week 4 — Data Provider Migration, Grading Accuracy, and Polish
+
+### What I built
+
+- Migrated the data source from Yahoo Finance to **[Finnhub](https://finnhub.io/)**. Wrote `providers/finnhubProvider.js` exporting the same `getStockData` / `resolveTicker` shape, so the routes, the grading function, and the tests didn't change — the Week 1 provider abstraction paid off exactly as hoped.
+- Added a **`npm run seed`** script that pre-grades ~10 popular tickers into MongoDB from a local machine, warming the shared cache so the deployed backend serves them without a live Finnhub call.
+- Hardened the grading pipeline after a systematic sweep of 60+ tickers across every sector:
+  - **Date-precise freshness guard** — returns N/A when the most recent annual report is more than ~2 years old (measured from the report's period-end date, so off-calendar fiscal years are handled correctly).
+  - **Sector awareness** — banks/insurers/financial firms (no CapEx → no FCF) return N/A with a plain-English reason; REITs, insurers, and utilities that *do* grade carry an amber caveat that free cash flow is only a rough proxy.
+  - Surfaced grade explanations to the UI by plumbing a `reason` (for N/A) and `note` (sector caveat) field through the `Stock` model, the routes, and the Grade Detail page.
+- Added a **show / hide password** eye toggle (`<PasswordInput />`) to Login and Signup, plus proper `autocomplete` attributes.
+
+### Challenges — the bugs the sweep caught
+
+- **Why migrate at all.** On Render's free tier the backend shares an outbound IP with other tenants, and Yahoo's unofficial endpoints started returning HTTP 429 (rate-limited) in production even though local dev was fine. Finnhub has an official free tier (60 calls/min) with a real API key, which fixed it.
+- **Finnhub returns financials as raw XBRL concepts**, and the concept names vary wildly by filer. That caused a string of subtle bugs, each found by eyeballing real numbers in the sweep:
+  - **Free cash flow was doubled.** Finnhub reports CapEx as a *positive* amount, but the formula added it (`OCF + capex`) instead of subtracting. Walmart showed $68B FCF instead of ~$15B. Fixed to `OCF − |CapEx|`.
+  - **Wrong company entirely.** `financials-reported` maps a ticker to whatever SEC filer historically held it: `GOOG` returned the defunct *Google Inc.* (frozen at 2015), and ticker `B` returned *Barnes Group* — the prior holder of that ticker — not Barrick. Fixed with a symbol alias (GOOG→GOOGL) plus the freshness guard catching the rest.
+  - **Revenue grabbed a sub-line.** Pfizer's first matching revenue concept was a $1.8B sub-line; the real total ($62.6B) sat under a different concept. Fixed by taking the *maximum* across all revenue concepts (total ≥ any component). The same fix corrected UnitedHealth ($91B → $447B).
+  - **Missing concept variants.** Eli Lilly, Verizon, Realty Income, and Dow each report CapEx under a different us-gaap concept; added each as a fallback.
+- **Inconsistent history length.** Finnhub returns anywhere from 4 to 16 years per stock, so "long-term growth" wasn't comparable across companies. Capped grading to the most recent 5 annual periods.
+- **The model doesn't fit every business.** Banks, REITs, insurers, and utilities are judged on metrics like FFO, book value, or regulated returns — not free cash flow. Rather than show a confident-but-wrong letter, the app now says so.
+
+### What I learned
+
+- **The provider abstraction was the best early decision.** Swapping the entire data source touched exactly one new file plus import lines — the pure grading function and every existing test were untouched. Worth the small up-front cost back in Week 1.
+- **Eyeball real data, not just green tests.** Every unit test stayed green while FCF was silently doubled. The bug only showed when I swept dozens of real tickers and asked "does $68B of free cash flow for Walmart look right?" It doesn't.
+- **An honest "N/A" beats a confident wrong answer.** A B for a bank built on meaningless cash-flow numbers is worse than saying "this model doesn't apply here — and here's what to look at instead."
+
+### Screenshots / milestones
+
+Updated architecture — same shape, Finnhub in place of Yahoo:
+
+```mermaid
+graph LR
+  Browser["Browser<br/>React + Vite"] -->|"HTTPS + JWT"| API["Express API<br/>passport-jwt"]
+  API -->|"Provider<br/>abstraction"| Provider["finnhubProvider"]
+  Provider --> FH["Finnhub API"]
+  API -->|"Mongoose"| Mongo[("MongoDB Atlas<br/>users + stocks +<br/>history + watchlists")]
+```
+
+Full test suite after Week 4 — **97 tests passing** (65 backend + 32 frontend):
+
+```text
+# Backend  (Mocha + Chai + Supertest)
+  65 passing
+
+# Frontend (Vitest + React Testing Library)
+  Test Files  7 passed (7)
+       Tests  32 passed (32)
+```
+
+---
+
 ## Wrap-up
 
-By the end of Week 3 the app is **live, deployed, and tested**. The whole stack — Vercel ↔ Render ↔ MongoDB Atlas ↔ Yahoo Finance — proven end-to-end via a smoke test: sign up on the live site → grade AAPL → see the cached grade with full criteria + price.
+By the end of Week 3 the app was **live, deployed, and tested** — the whole stack (Vercel ↔ Render ↔ MongoDB Atlas ↔ Yahoo Finance) proven end-to-end via a smoke test: sign up on the live site → grade AAPL → see the cached grade with full criteria + price.
+
+**Week 4** then migrated the data source to **Finnhub** (after Yahoo's unofficial endpoints began rate-limiting the deployed backend) and hardened the grading for messy real-world data — so the app now runs on the **Vercel ↔ Render ↔ MongoDB Atlas ↔ Finnhub** stack, with honest N/A handling and sector caveats where free cash flow isn't the right lens.
 
 ### Things I'd do differently next time
 
@@ -282,7 +338,7 @@ By the end of Week 3 the app is **live, deployed, and tested**. The whole stack 
 ### Future improvements (post-capstone)
 
 - Watchlist auto-refresh on a schedule (instead of relying on the user to revisit a ticker's page).
-- Sector-relative grading.
-- A "Why this grade?" plain-English explanation generated from the criteria.
+- Sector-relative grading — _true peer comparison_ (e.g. grade a bank against other banks). Week 4 added sector **fit** awareness (N/A for banks/REITs, caveats for utilities); grading a stock relative to its sector peers is still ahead.
+- A "Why this grade?" plain-English explanation generated from the criteria. Week 4 took a first step with N/A reasons and sector caveats.
 - Email alerts when a watchlist ticker's grade changes.
 - Charts of revenue and FCF trends.

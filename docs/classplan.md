@@ -5,6 +5,8 @@ I review this after every class, then push so my GitHub history matches the sche
 
 > **Status legend:** `[x]` = done, `[ ]` = not started, `[~]` = in progress
 > **Repos:** [`stock-advisor-frontend`](https://github.com/Cory71/stock-advisor-frontend) · [`stock-advisor-backend`](https://github.com/Cory71/stock-advisor-backend)
+>
+> **Update (Week 4):** the data source migrated from `yahoo-finance2` to **[Finnhub](https://finnhub.io/)**, and grading gained a freshness guard, sector-fit handling (N/A reasons + sector caveats), and a show/hide password toggle. The `[x]` items below record the original Week 1–3 work as completed at the time; see [`devlog.md`](./devlog.md) Week 4 for the later changes.
 
 ---
 

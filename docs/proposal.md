@@ -2,12 +2,14 @@
 
 > **Architecture diagram** — system architecture, frontend component tree, and backend component tree:
 >
-> - 🔗 **[Open in Excalidraw (live view)](https://excalidraw.com/#json=zWA_-8Ea4rsq__VOPWiD6,v7nrDZ810n7zDAqidAVHSw)** — click to view all three diagrams in the browser. Press **`Shift + 1`** once loaded to fit all diagrams to your screen.
-> - 📄 **[architecture.excalidraw](./architecture.excalidraw)** — source file in this repo (version-controlled; renders on GitHub)
+> - 🔗 **[Open in Excalidraw (live view)](https://excalidraw.com/#json=yu_UJKLpL5GzAMvM6tjtL,MjUv_71OEzhueZFDR9ugkQ)** — click to view all three diagrams in the browser. Press **`Shift + 1`** once loaded to fit all diagrams to your screen.
+> - 📄 **[architecture.excalidraw](./architecture.excalidraw)** — the version-controlled source file in this repo (source of truth).
 
 ## Project Idea
 
 StockGrader is a web application that grades publicly traded stocks on an A–F scale based on five fundamental financial criteria sourced from Yahoo Finance. Users enter a ticker symbol, and the app returns a letter grade with a transparent checklist of the underlying numbers — giving beginner investors a fast, clear read on a stock's fundamental health without having to interpret financial statements themselves.
+
+> **Update (Week 4):** the data source later migrated from Yahoo Finance (`yahoo-finance2`) to **[Finnhub](https://finnhub.io/)** after Yahoo's unofficial endpoints began rate-limiting the deployed backend. The provider abstraction noted below made it a one-file change. Yahoo references in this original pitch are preserved as written; see [`devlog.md`](./devlog.md) Week 4 for the migration and the grading-accuracy work that followed.
 
 ---
 

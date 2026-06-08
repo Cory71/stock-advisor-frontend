@@ -1,6 +1,6 @@
 # StockGrader — Frontend
 
-React web application for StockGrader, a web app that grades publicly traded stocks A–F based on five fundamental financial criteria sourced from Yahoo Finance.
+React web application for StockGrader, a web app that grades publicly traded stocks A–F based on five fundamental financial criteria sourced from [Finnhub](https://finnhub.io/).
 
 ## Live demo
 
@@ -82,9 +82,9 @@ home page.
 npm test
 ```
 
-Runs the Vitest suite with the verbose reporter — **28 tests** across helpers,
+Runs the Vitest suite with the verbose reporter — **32 tests** across helpers,
 components, and hooks (`grade.js`, `usePageTitle`, `<TickerSearch />`,
-`<AboutCard />`, `<Footer />`, `<CandlestickFooter />`).
+`<AboutCard />`, `<Footer />`, `<CandlestickFooter />`, `<PasswordInput />`).
 
 ```bash
 npm run test:watch
@@ -105,8 +105,10 @@ Same suite but re-runs whenever a file changes — handy during development.
 ## Features
 
 - Email / password sign-up & login plus **Google sign-in** (Google Identity Services).
+- **Show / hide password** toggle (eye icon) on the Login and Signup forms.
 - Ticker **or company name** search — backend resolves names to canonical tickers.
 - Grade card with letter grade, 5-criteria breakdown, share price + currency, company name, "graded at" timestamp.
+- **Plain-English explanations** when a stock can't be graded (e.g. data too old, or a bank/insurer the model doesn't fit), plus **sector caveats** on REITs, insurers, and utilities where free cash flow is only a rough proxy.
 - Watchlist with `gradeAtAdd` snapshot per row, current grade comparison (▲ Upgraded / ▼ Downgraded / — No change), last price, and a phone-friendly column-hiding layout.
 - Compare page with Cards and Table view modes.
 - Recent searches with company name beside each ticker.

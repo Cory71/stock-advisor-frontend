@@ -11,6 +11,7 @@ import { usePageTitle } from '../lib/usePageTitle';
 import GoogleSignInButton from '../components/GoogleSignInButton';
 import CandlestickFooter from '../components/CandlestickFooter';
 import AboutCard from '../components/AboutCard';
+import PasswordInput from '../components/PasswordInput';
 
 function Signup() {
   usePageTitle('Sign up');
@@ -92,12 +93,12 @@ function Signup() {
 
         <Form.Group className="mb-3" controlId="signupPassword">
           <Form.Label>Password</Form.Label>
-          <Form.Control
-            type="password"
+          <PasswordInput
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
             minLength={6}
+            autoComplete="new-password"
           />
           <Form.Text className="text-muted">At least 6 characters.</Form.Text>
         </Form.Group>
