@@ -65,6 +65,7 @@ Real-world provider data is messy, so the grader guards against misleading outpu
 - **Freshness guard:** if the most recent annual report is more than ~2 years old (measured from its period-end date), the data likely belongs to a defunct SEC filer — e.g. a ticker that changed hands. The stock is returned **N/A** with an explanatory `reason` rather than a stale grade.
 - **Sector fit:** banks, insurers, and other financial firms have no capital expenditure, so free cash flow can't be computed — they return **N/A** with a `reason`. REITs, insurers, and utilities that *do* grade carry a `note` caveat, because revenue/FCF is only a rough proxy for those business models (they're judged on FFO, book value, regulated returns, etc.).
 - **Concept robustness:** revenue uses the largest matching XBRL concept (avoids grabbing a sub-line), with a fallback for filers that only report gross "including assessed tax" revenue; CapEx matches a range of us-gaap concept variants across industries.
+- **Coverage / non-US symbols:** the Finnhub free tier covers U.S.-listed stocks (NYSE/Nasdaq). A non-US symbol — e.g. a Toronto `.TO` listing — returns a clear "StockGrader currently only supports U.S.-listed stocks" message rather than a confusing error. (A shared `friendlyError` helper keeps provider internals — HTTP codes, the provider name — out of every user-facing message.)
 
 ## 4. Core Features (MVP)
 
@@ -210,8 +211,8 @@ See [`classplan.md`](./classplan.md) for the live class-by-class tracker.
 
 Backend uses **Mocha + Chai + Supertest** with `mongodb-memory-server` for isolation and `sinon` to stub the Finnhub provider. Frontend uses **Vitest + React Testing Library** (Vite-native, same syntax as Jest).
 
-- **Unit tests** on the grading function (Mocha + Chai) — 28 tests covering each criterion, the score→grade mapping, the freshness guard, sector caveats, and N/A edge cases.
-- **API tests** with Supertest (driven by Mocha) for each endpoint, with the Finnhub client stubbed out — 37 tests across `auth`, `grade`, `watchlist`, `compare`, and `history` routes (65 backend total).
+- **Unit tests** on the grading function (Mocha + Chai) — 30 tests covering each criterion, the score→grade mapping, the FCF-must-be-positive growth rule, the freshness guard, sector caveats, and N/A edge cases.
+- **API tests** with Supertest (driven by Mocha) for each endpoint, with the Finnhub client stubbed out — 38 tests across `auth`, `grade`, `watchlist`, `compare`, and `history` routes (68 backend total).
 - **Component / helper tests** with Vitest + React Testing Library — 32 tests across the `grade` helpers, `<TickerSearch />`, `<AboutCard />`, `<Footer />`, `<CandlestickFooter />`, and `<PasswordInput />`.
 - **Manual smoke test** across desktop (1280px) + mobile (360px) sizes — verified end-to-end via Playwright on every page.
 

@@ -44,6 +44,7 @@ graph TD
 - NavBar is visible on every screen.
 - When **logged out**, NavBar shows: `StockGrader` (brand) · `Log in` · `Sign up`.
 - When **logged in**, NavBar shows: `StockGrader` · `Home` · `Watchlist` · `Compare` · `Welcome, <name>` · `Logout`.
+- On phones the NavBar collapses behind a hamburger. The open menu reads top-to-bottom: `Welcome, <name>` header → `Home` · `Watchlist` · `Compare` → divider → `Dark` toggle · `Logout` (responsive flex ordering keeps the desktop bar's left/right layout unchanged).
 
 **Global page footer (added Class 6 polish):**
 
@@ -257,6 +258,7 @@ The URL accepts either a ticker (`/grade/AAPL`) or a company name (`/grade/Apple
   - *empty* → N/A (a query is always specified by URL).
   - *error (logged out)* → friendly info alert: "Please log in to grade stocks" with Log in / Sign up buttons (no scary heading).
   - *error (logged in)* → "Couldn't grade …" red alert.
+  - *unsupported symbol* → a non-US ticker (e.g. a Toronto `.TO` listing) shows "StockGrader currently only supports U.S.-listed stocks (NYSE and Nasdaq). Data isn't available for …" instead of a technical error.
 
 ### 5. Watchlist `/watchlist`
 

@@ -281,6 +281,10 @@ Full test suite — **78 tests passing, all green** (50 backend + 28 frontend):
   - **Sector awareness** — banks/insurers/financial firms (no CapEx → no FCF) return N/A with a plain-English reason; REITs, insurers, and utilities that *do* grade carry an amber caveat that free cash flow is only a rough proxy.
   - Surfaced grade explanations to the UI by plumbing a `reason` (for N/A) and `note` (sector caveat) field through the `Stock` model, the routes, and the Grade Detail page.
 - Added a **show / hide password** eye toggle (`<PasswordInput />`) to Login and Signup, plus proper `autocomplete` attributes.
+- Refined things further after testing the live site:
+  - **FCF "growth" must be positive.** Criteria 4 and 5 now require the latest figure to beat the prior period *and* be above zero — so a company that merely shrank a loss (Norwegian Cruise Line, still −$1.2B FCF) no longer earns a passing "growth" check. NCLH went **B → D**.
+  - **Friendlier, provider-neutral errors.** A shared `lib/friendlyError.js` maps lookup failures to clean messages across the grade, compare, and watchlist routes. Non-US symbols (e.g. a Toronto `.TO` listing, which the free tier 403s) now show *"StockGrader currently only supports U.S.-listed stocks"* instead of a raw error or a misleading "temporarily unavailable" — and the word "Finnhub" never reaches a user.
+  - **Mobile navbar polish.** The collapsed menu now reads as a "Welcome, …" header → page links → divider → theme toggle + log out, instead of those controls floating centered in mid-screen.
 
 ### Challenges — the bugs the sweep caught
 
@@ -311,11 +315,11 @@ graph LR
   API -->|"Mongoose"| Mongo[("MongoDB Atlas<br/>users + stocks +<br/>history + watchlists")]
 ```
 
-Full test suite after Week 4 — **97 tests passing** (65 backend + 32 frontend):
+Full test suite after Week 4 — **100 tests passing** (68 backend + 32 frontend):
 
 ```text
 # Backend  (Mocha + Chai + Supertest)
-  65 passing
+  68 passing
 
 # Frontend (Vitest + React Testing Library)
   Test Files  7 passed (7)
