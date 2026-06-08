@@ -1,17 +1,24 @@
 /* Mobile (collapsed) navbar polish.
-   Below the `lg` breakpoint the navbar stacks into a vertical column. There we
-   keep everything left-aligned and visually separate the account controls
-   (theme toggle, greeting, log out) from the main page links with a subtle
-   divider. Above `lg` the navbar is a normal horizontal bar and these rules
+   Below the `lg` breakpoint the navbar stacks into a vertical column. The menu
+   then reads top-to-bottom: a "Welcome, …" header, the page links, a divider,
+   then the settings + sign-out controls. Above `lg` the navbar is a normal
+   horizontal bar (page links left, account controls right) and these rules
    don't apply. */
 @media (max-width: 991.98px) {
-  .navbar-account {
+  /* Greeting acts as a small header at the top of the menu. */
+  .nav-greeting {
+    padding-bottom: 0.25rem;
+    opacity: 0.85;
+  }
+
+  /* Divider separating the page links from the settings/sign-out group. */
+  .nav-controls {
     border-top: 1px solid rgba(255, 255, 255, 0.15);
     margin-top: 0.5rem;
     padding-top: 0.5rem;
   }
 
-  /* A touch more breathing room between stacked links so they're easy to tap. */
+  /* A touch more vertical room so stacked links are easy to tap. */
   .navbar-collapse .nav-link {
     padding-top: 0.4rem;
     padding-bottom: 0.4rem;

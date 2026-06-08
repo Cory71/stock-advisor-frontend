@@ -28,18 +28,26 @@ function NavBar() {
 
         <Navbar.Collapse id="main-nav">
           {user ? (
+            // Responsive ordering: on desktop the bar reads
+            //   [Home Watchlist Compare] ........ [Welcome  Dark  Log out]
+            // On mobile (collapsed column) the order-lg-* classes drop away, so
+            // it stacks in DOM order: greeting header, page links, divider,
+            // then settings + sign out (see NavBar.css).
             <>
-              {/* Logged in: main pages on the left */}
-              <Nav className="me-auto">
+              {/* Greeting — a small header on top for mobile; sits on the right on desktop */}
+              <Navbar.Text className="nav-greeting order-lg-2">
+                Welcome, {user.displayName || user.email}
+              </Navbar.Text>
+
+              {/* Main pages */}
+              <Nav className="nav-links me-lg-auto order-lg-first">
                 <Nav.Link as={Link} to="/">Home</Nav.Link>
                 <Nav.Link as={Link} to="/watchlist">Watchlist</Nav.Link>
                 <Nav.Link as={Link} to="/compare">Compare</Nav.Link>
               </Nav>
 
-              {/* Logged in: greeting + theme toggle + logout. Right-aligned and
-                  vertically centered on desktop; left-aligned and divided from
-                  the page links on mobile (see NavBar.css). */}
-              <Nav className="navbar-account align-items-lg-center">
+              {/* Settings + sign out */}
+              <Nav className="nav-controls order-lg-3 align-items-lg-center">
                 <Form.Check
                   type="switch"
                   id="theme-toggle"
@@ -48,9 +56,6 @@ function NavBar() {
                   onChange={toggleTheme}
                   className="text-light me-3"
                 />
-                <Navbar.Text className="me-3">
-                  Welcome, {user.displayName || user.email}
-                </Navbar.Text>
                 <Nav.Link
                   onClick={handleLogout}
                   role="button"
