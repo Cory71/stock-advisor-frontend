@@ -5,6 +5,7 @@ import { Navbar, Nav, Container, Form } from 'react-bootstrap';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import './NavBar.css';
 
 function NavBar() {
   const { user, logout } = useAuth();
@@ -35,8 +36,10 @@ function NavBar() {
                 <Nav.Link as={Link} to="/compare">Compare</Nav.Link>
               </Nav>
 
-              {/* Logged in: greeting + theme toggle + logout on the right */}
-              <Nav className="align-items-center">
+              {/* Logged in: greeting + theme toggle + logout. Right-aligned and
+                  vertically centered on desktop; left-aligned and divided from
+                  the page links on mobile (see NavBar.css). */}
+              <Nav className="navbar-account align-items-lg-center">
                 <Form.Check
                   type="switch"
                   id="theme-toggle"
@@ -58,8 +61,9 @@ function NavBar() {
               </Nav>
             </>
           ) : (
-            /* Logged out: theme toggle + auth links on the right */
-            <Nav className="ms-auto align-items-center">
+            /* Logged out: theme toggle + auth links. Right + centered on
+               desktop; left-aligned on mobile. */
+            <Nav className="ms-auto align-items-lg-center">
               <Form.Check
                 type="switch"
                 id="theme-toggle"
