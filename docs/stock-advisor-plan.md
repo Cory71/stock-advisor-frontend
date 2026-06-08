@@ -28,8 +28,8 @@ All five criteria come from a company's income statement and cash flow statement
 1. **Topline revenue growth (long-term):** Is the **latest** annual revenue greater than the **earliest** annual revenue available? (income statement, annual columns)
 2. **Recent revenue growth (TTM):** Is the **TTM** revenue column higher than the most recent full fiscal year? (income statement, TTM vs latest annual column)
 3. **Net positive free cash flow:** Is the most recent **Free Cash Flow** value positive? (cash flow statement, "Free Cash Flow" row, latest column)
-4. **Free cash flow growth (long-term):** Is the **latest** annual Free Cash Flow greater than the **earliest** annual Free Cash Flow available?
-5. **Recent free cash flow growth (last year):** Is the **TTM** Free Cash Flow column higher than the most recent full fiscal year?
+4. **Free cash flow growth (long-term):** Is the **latest** annual Free Cash Flow greater than the **earliest** annual Free Cash Flow available **and** positive? (A company that merely shrank a loss — still cash-negative — does not pass.)
+5. **Recent free cash flow growth (TTM):** Is the **TTM** Free Cash Flow higher than the most recent full fiscal year **and** positive?
 
 **"Growth" rule (criteria 1 and 4):** "latest annual > earliest annual" over the most recent **5** annual periods (capped so the long-term window is the same for every stock). We chose this over strict every-year-up because it still rewards companies that had a single down year (e.g. Apple's 2018→2019 free cash flow dip) without giving them a free pass on their overall direction.
 
