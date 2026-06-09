@@ -315,15 +315,15 @@ graph LR
   API -->|"Mongoose"| Mongo[("MongoDB Atlas<br/>users + stocks +<br/>history + watchlists")]
 ```
 
-Full test suite after Week 4 — **100 tests passing** (68 backend + 32 frontend):
+Full test suite after Week 4 — **102 tests passing** (68 backend + 34 frontend):
 
 ```text
 # Backend  (Mocha + Chai + Supertest)
   68 passing
 
 # Frontend (Vitest + React Testing Library)
-  Test Files  7 passed (7)
-       Tests  32 passed (32)
+  Test Files  8 passed (8)
+       Tests  34 passed (34)
 ```
 
 ---

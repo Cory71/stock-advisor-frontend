@@ -213,7 +213,7 @@ Backend uses **Mocha + Chai + Supertest** with `mongodb-memory-server` for isola
 
 - **Unit tests** on the grading function (Mocha + Chai) — 30 tests covering each criterion, the score→grade mapping, the FCF-must-be-positive growth rule, the freshness guard, sector caveats, and N/A edge cases.
 - **API tests** with Supertest (driven by Mocha) for each endpoint, with the Finnhub client stubbed out — 38 tests across `auth`, `grade`, `watchlist`, `compare`, and `history` routes (68 backend total).
-- **Component / helper tests** with Vitest + React Testing Library — 32 tests across the `grade` helpers, `<TickerSearch />`, `<AboutCard />`, `<Footer />`, `<CandlestickFooter />`, and `<PasswordInput />`.
+- **Component / helper tests** with Vitest + React Testing Library — 34 tests across the `grade` helpers, `useWarmBackend`, `<TickerSearch />`, `<AboutCard />`, `<Footer />`, `<CandlestickFooter />`, and `<PasswordInput />`.
 - **Manual smoke test** across desktop (1280px) + mobile (360px) sizes — verified end-to-end via Playwright on every page.
 
 ## 13. Risks & Open Questions

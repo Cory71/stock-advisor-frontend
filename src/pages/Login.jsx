@@ -3,11 +3,12 @@
 
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Form, Button, Alert, Row, Col } from 'react-bootstrap';
+import { Form, Button, Alert, Row, Col, Spinner } from 'react-bootstrap';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../lib/apiFetch';
 import { useAutoDismiss } from '../lib/useAutoDismiss';
 import { usePageTitle } from '../lib/usePageTitle';
+import { useWarmBackend } from '../lib/useWarmBackend';
 import GoogleSignInButton from '../components/GoogleSignInButton';
 import CandlestickFooter from '../components/CandlestickFooter';
 import AboutCard from '../components/AboutCard';
@@ -15,6 +16,9 @@ import PasswordInput from '../components/PasswordInput';
 
 function Login() {
   usePageTitle('Log in');
+
+  // Wake the (possibly sleeping) backend while the user types — see the hook.
+  useWarmBackend();
 
   // Form state — controlled inputs.
   const [email, setEmail] = useState('');
@@ -89,7 +93,14 @@ function Login() {
         </Form.Group>
 
         <Button type="submit" variant="primary" disabled={submitting}>
-          {submitting ? 'Logging in…' : 'Log in'}
+          {submitting ? (
+            <>
+              <Spinner as="span" animation="border" size="sm" className="me-2" />
+              Logging in…
+            </>
+          ) : (
+            'Log in'
+          )}
         </Button>
       </Form>
 

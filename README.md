@@ -82,9 +82,10 @@ home page.
 npm test
 ```
 
-Runs the Vitest suite with the verbose reporter — **32 tests** across helpers,
-components, and hooks (`grade.js`, `usePageTitle`, `<TickerSearch />`,
-`<AboutCard />`, `<Footer />`, `<CandlestickFooter />`, `<PasswordInput />`).
+Runs the Vitest suite with the verbose reporter — **34 tests** across helpers,
+components, and hooks (`grade.js`, `usePageTitle`, `useWarmBackend`,
+`<TickerSearch />`, `<AboutCard />`, `<Footer />`, `<CandlestickFooter />`,
+`<PasswordInput />`).
 
 ```bash
 npm run test:watch
@@ -106,6 +107,7 @@ Same suite but re-runs whenever a file changes — handy during development.
 
 - Email / password sign-up & login plus **Google sign-in** (Google Identity Services).
 - **Show / hide password** toggle (eye icon) on the Login and Signup forms.
+- Login / Signup show a **spinner** while signing in, and warm up the backend on page load so the first request after the server has been idle feels fast.
 - Ticker **or company name** search — backend resolves names to canonical tickers.
 - Grade card with letter grade, 5-criteria breakdown, share price + currency, company name, "graded at" timestamp.
 - **Plain-English explanations** when a stock can't be graded (e.g. data too old, or a bank/insurer the model doesn't fit), plus **sector caveats** on REITs, insurers, and utilities where free cash flow is only a rough proxy.
