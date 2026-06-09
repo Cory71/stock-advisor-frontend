@@ -28,6 +28,10 @@ function Watchlist() {
   const [submitting, setSubmitting] = useState(false);
   const [addInfo, setAddInfo]       = useState(null);
 
+  // "Refresh all" state — true while re-grading, plus when it last finished.
+  const [refreshing, setRefreshing]   = useState(false);
+  const [refreshedAt, setRefreshedAt] = useState(null);
+
   // Banner auto-dismisses after 5s.
   useAutoDismiss(addInfo, setAddInfo);
 
@@ -73,6 +77,23 @@ function Watchlist() {
     }
   }
 
+  // Re-grade every ticker with fresh data (the backend bypasses its cache),
+  // then swap in the updated rows and stamp the time. One row failing doesn't
+  // stop the rest — the backend skips it.
+  async function handleRefreshAll() {
+    setRefreshing(true);
+    setAddInfo(null);
+    try {
+      const data = await apiFetch('/api/watchlist/refresh', { method: 'POST' });
+      setItems(data);
+      setRefreshedAt(new Date());
+    } catch (err) {
+      setAddInfo({ variant: 'danger', message: err.message });
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
   async function handleRemove(ticker) {
     try {
       await apiFetch(`/api/watchlist/${ticker}`, { method: 'DELETE' });
@@ -87,8 +108,8 @@ function Watchlist() {
     <div>
       <h1>Your watchlist</h1>
       <p className="text-muted">
-        The "Current" grade reflects the latest cached grade. To refresh a
-        ticker, open its page from the Ticker column.
+        The "Current" grade is the most recent grade we have. Click "Refresh
+        all" to update every row with the latest data.
       </p>
 
       {/* Add-ticker form */}
@@ -141,6 +162,31 @@ function Watchlist() {
 
       {/* Happy path — table of saved tickers */}
       {!loading && !error && items.length > 0 && (
+        <>
+        {/* Refresh-all toolbar — re-grades every row in one click */}
+        <div className="d-flex align-items-center gap-3 mb-2">
+          <Button
+            variant="outline-primary"
+            size="sm"
+            onClick={handleRefreshAll}
+            disabled={refreshing}
+          >
+            {refreshing ? (
+              <>
+                <Spinner as="span" animation="border" size="sm" className="me-1" />
+                Refreshing all…
+              </>
+            ) : (
+              'Refresh all'
+            )}
+          </Button>
+          {refreshedAt && (
+            <span className="text-muted small">
+              Updated: {refreshedAt.toLocaleTimeString()}
+            </span>
+          )}
+        </div>
+
         <Table hover responsive>
           <thead>
             <tr>
@@ -197,6 +243,7 @@ function Watchlist() {
             })}
           </tbody>
         </Table>
+        </>
       )}
     </div>
   );

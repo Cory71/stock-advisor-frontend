@@ -59,6 +59,9 @@ function GradeDetail() {
   const [adding, setAdding]     = useState(false);
   const [addInfo, setAddInfo]   = useState(null); // { variant, message } or null
 
+  // True while a manual "Refresh" re-grade is in flight.
+  const [refreshing, setRefreshing] = useState(false);
+
   // Banner auto-dismisses after 5s so the user doesn't have to click the X.
   useAutoDismiss(addInfo, setAddInfo);
 
@@ -82,6 +85,23 @@ function GradeDetail() {
 
     return () => { cancelled = true; };
   }, [upper]);
+
+  // Force a fresh re-grade from Finnhub (bypasses the backend's 24h cache) and
+  // update the "Last graded" timestamp. Errors show as a transient banner so a
+  // failed refresh doesn't wipe out the grade that's already on screen.
+  async function handleRefresh() {
+    setRefreshing(true);
+    setAddInfo(null);
+    try {
+      const tickerToRefresh = data?.ticker || upper;
+      const res = await apiFetch(`/api/grade/${tickerToRefresh}?refresh=1`);
+      setData(res);
+    } catch (err) {
+      setAddInfo({ variant: 'danger', message: err.message });
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   async function handleAddToWatchlist() {
     setAdding(true);
@@ -216,10 +236,25 @@ function GradeDetail() {
       )}
 
       {data.gradedAt && (
-        <p className="text-muted small">
-          Graded at: {new Date(data.gradedAt).toLocaleString()}
-          {data.cached && ' (from cache)'}
-        </p>
+        <div className="d-flex align-items-center gap-2 text-muted small mt-2">
+          <span>Last graded: {new Date(data.gradedAt).toLocaleString()}</span>
+          <Button
+            variant="link"
+            size="sm"
+            className="p-0 align-baseline text-decoration-none"
+            onClick={handleRefresh}
+            disabled={refreshing}
+          >
+            {refreshing ? (
+              <>
+                <Spinner as="span" animation="border" size="sm" className="me-1" />
+                Refreshing…
+              </>
+            ) : (
+              'Refresh'
+            )}
+          </Button>
+        </div>
       )}
     </div>
   );
