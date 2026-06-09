@@ -8,7 +8,7 @@
 // "returning" users the same way; the backend does the find-or-create.
 
 import { GoogleLogin } from '@react-oauth/google';
-import { Alert } from 'react-bootstrap';
+import { Alert, Spinner } from 'react-bootstrap';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -20,6 +20,8 @@ function GoogleSignInButton() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState('');
+  // True while we exchange Google's credential for our JWT (shows a spinner).
+  const [submitting, setSubmitting] = useState(false);
 
   // Error banner auto-dismisses after 5s.
   useAutoDismiss(error, setError);
@@ -32,15 +34,17 @@ function GoogleSignInButton() {
 
   async function handleCredential(credentialResponse) {
     setError('');
+    setSubmitting(true);
     try {
       const data = await apiFetch('/api/auth/google', {
         method: 'POST',
         body: JSON.stringify({ credential: credentialResponse.credential })
       });
       login(data.token, data.user);
-      navigate('/');
+      navigate('/'); // success — this page unmounts, so no need to reset submitting
     } catch (err) {
       setError(err.message);
+      setSubmitting(false); // failed — restore the button so they can retry
     }
   }
 
@@ -51,13 +55,22 @@ function GoogleSignInButton() {
   return (
     <div className="mb-3 google-signin-wrapper">
       {error && <Alert variant="danger">{error}</Alert>}
-      <GoogleLogin
-        onSuccess={handleCredential}
-        onError={handleError}
-        useOneTap={false}
-        width="400"
-        logo_alignment="center"
-      />
+      {submitting ? (
+        // While our backend verifies the Google credential, swap the button for
+        // a spinner — gives feedback (esp. on a cold start) and blocks re-clicks.
+        <div className="d-flex align-items-center justify-content-center py-2 text-muted">
+          <Spinner as="span" animation="border" size="sm" className="me-2" />
+          Signing in with Google…
+        </div>
+      ) : (
+        <GoogleLogin
+          onSuccess={handleCredential}
+          onError={handleError}
+          useOneTap={false}
+          width="400"
+          logo_alignment="center"
+        />
+      )}
     </div>
   );
 }
