@@ -184,7 +184,7 @@ Auth (JWT-based):
 
 Grading:
 
-- `GET /api/grade/:query` → graded result for a ticker **or company name** (auth required; resolves names via Finnhub search, records to user's history).
+- `GET /api/grade/:query` → graded result for a ticker **or company name** (auth required; resolves names via Finnhub search, records to user's history). Add `?refresh=1` to bypass the 24h cache and force a fresh re-grade.
 - `GET /api/compare?tickers=AAPL,MSFT,GOOG` → graded results for 2–3 tickers or names (auth required; per-ticker errors don't break the response).
 
 User data:
@@ -192,6 +192,7 @@ User data:
 - `GET /api/history` → current user's recent lookups, enriched with the cached company name per row.
 - `GET /api/watchlist` → current user's watchlist, enriched with company name, current grade, last price, and currency from the Stock cache.
 - `POST /api/watchlist` → add a ticker or name (resolves and grades; freezes the current grade as `gradeAtAdd`).
+- `POST /api/watchlist/refresh` → force a fresh re-grade of every saved ticker (cache-bypassed, one at a time to respect the rate limit), then return the updated list.
 - `DELETE /api/watchlist/:ticker` → remove a ticker.
 
 ## 10. UI Pages / Components
@@ -212,7 +213,8 @@ See [`classplan.md`](./classplan.md) for the live class-by-class tracker.
 Backend uses **Mocha + Chai + Supertest** with `mongodb-memory-server` for isolation and `sinon` to stub the Finnhub provider. Frontend uses **Vitest + React Testing Library** (Vite-native, same syntax as Jest).
 
 - **Unit tests** on the grading function (Mocha + Chai) — 30 tests covering each criterion, the score→grade mapping, the FCF-must-be-positive growth rule, the freshness guard, sector caveats, and N/A edge cases.
-- **API tests** with Supertest (driven by Mocha) for each endpoint, with the Finnhub client stubbed out — 38 tests across `auth`, `grade`, `watchlist`, `compare`, and `history` routes (68 backend total).
+- **API tests** with Supertest (driven by Mocha) for each endpoint, with the Finnhub client stubbed out — 41 tests across `auth`, `grade`, `watchlist`, `compare`, and `history` routes, including the on-demand cache-bypass refresh paths.
+- **Provider tests** on the Finnhub adapter — 9 tests covering the common-name aliases (e.g. "Google" → `GOOGL`, "Facebook" → `META`) and the U.S.-listing preference that picks `NKE`/`V` over Finnhub's foreign listings (`NIKE.WA`, `VISA.RO`). (80 backend total.)
 - **Component / helper tests** with Vitest + React Testing Library — 34 tests across the `grade` helpers, `useWarmBackend`, `<TickerSearch />`, `<AboutCard />`, `<Footer />`, `<CandlestickFooter />`, and `<PasswordInput />`.
 - **Manual smoke test** across desktop (1280px) + mobile (360px) sizes — verified end-to-end via Playwright on every page.
 

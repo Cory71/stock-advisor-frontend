@@ -119,6 +119,45 @@ Same suite but re-runs whenever a file changes — handy during development.
 - Auto-dismissing alerts (5 seconds) and decorative candlestick band on sparse pages.
 - Dynamic page titles (`AAPL · StockGrader`, `Watchlist · StockGrader`, etc).
 
+## Usage
+
+1. **Sign up or log in** — create an account with email + password, or use **Sign in with Google**. Grading requires an account.
+2. **Grade a stock** — on the Home page, type a **ticker** (e.g. `AAPL`) or a **company name** (e.g. `Apple`, `Google`) and press **Get grade**. You'll see a letter grade A–F, the five pass/fail criteria with the actual numbers, the share price, and when it was last graded.
+3. **Refresh** — grades are cached for 24 hours; click **Refresh** on a stock's page to pull fresh data on demand.
+4. **Build a watchlist** — add tickers to track them. Each row shows the grade when you added it vs. the current grade (▲ upgraded / ▼ downgraded), and **Refresh all** re-grades every row at once.
+5. **Compare** — view 2–3 stocks side by side in card or table form.
+6. **Dark / light mode** — toggle in the navbar; your choice is remembered.
+
+## Technologies Used
+
+### Frontend (this repo)
+
+- [React 18](https://react.dev/) + [Vite 6](https://vite.dev/) — UI and build tooling
+- [React Router 7](https://reactrouter.com/) — client-side routing
+- [React-Bootstrap 2](https://react-bootstrap.netlify.app/) + [Bootstrap 5](https://getbootstrap.com/) — components and responsive layout
+- [@react-oauth/google](https://www.npmjs.com/package/@react-oauth/google) — Google sign-in
+- [Vitest](https://vitest.dev/) + [React Testing Library](https://testing-library.com/) — tests
+
+### Backend ([stock-advisor-backend](https://github.com/Cory71/stock-advisor-backend))
+
+- [Node.js](https://nodejs.org/) + [Express](https://expressjs.com/) — REST API
+- [MongoDB](https://www.mongodb.com/) + [Mongoose](https://mongoosejs.com/) — database and models
+- [JWT](https://github.com/auth0/node-jsonwebtoken) (`passport-jwt`) + [bcryptjs](https://github.com/dcodeIO/bcrypt.js) — authentication
+- [Finnhub API](https://finnhub.io/) — live quotes and financial statements
+- [Mocha](https://mochajs.org/) + [Chai](https://www.chaijs.com/) + [Supertest](https://github.com/ladjs/supertest) — tests
+
+### Hosting
+
+- [Vercel](https://vercel.com/) (frontend) · [Render](https://render.com/) (backend) · [MongoDB Atlas](https://www.mongodb.com/atlas) (database)
+
+## Future Improvements
+
+- **Automatic watchlist refresh** on a schedule — the manual per-stock **Refresh** and **Refresh all** exist today; running it on a timer is the next step.
+- **Sector-relative grading** — grade a stock against its true peers (e.g. a bank vs. other banks), building on the current sector-fit awareness.
+- **Richer "Why this grade?" explanations** generated from the criteria, extending today's N/A reasons and sector caveats.
+- **Email alerts** when a watchlist ticker's grade changes.
+- **Charts** of revenue and free-cash-flow trends.
+
 ## Project Docs
 
 See the `/docs` folder for:

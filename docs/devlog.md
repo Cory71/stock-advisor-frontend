@@ -285,6 +285,9 @@ Full test suite — **78 tests passing, all green** (50 backend + 28 frontend):
   - **FCF "growth" must be positive.** Criteria 4 and 5 now require the latest figure to beat the prior period *and* be above zero — so a company that merely shrank a loss (Norwegian Cruise Line, still −$1.2B FCF) no longer earns a passing "growth" check. NCLH went **B → D**.
   - **Friendlier, provider-neutral errors.** A shared `lib/friendlyError.js` maps lookup failures to clean messages across the grade, compare, and watchlist routes. Non-US symbols (e.g. a Toronto `.TO` listing, which the free tier 403s) now show *"StockGrader currently only supports U.S.-listed stocks"* instead of a raw error or a misleading "temporarily unavailable" — and the word "Finnhub" never reaches a user.
   - **Mobile navbar polish.** The collapsed menu now reads as a "Welcome, …" header → page links → divider → theme toggle + log out, instead of those controls floating centered in mid-screen.
+  - **On-demand refresh + clearer freshness.** Grades are still cached for 24h, but a per-stock **Refresh** button and a watchlist **Refresh all** now force a fresh re-grade when the user wants one (`?refresh=1` on the grade route; a new `POST /api/watchlist/refresh` re-grades every saved ticker, paced one at a time to respect the rate limit). Replaced the developer-ish "(from cache)" label with a plain _"Last graded …"_ line so cached data never reads as "stale" to a user.
+  - **Faster-feeling sign-in.** Login and Signup warm the sleeping Render backend on page load and show a spinner while authenticating (email/password _and_ Google), so the free-tier cold start no longer looks frozen.
+  - **Smarter name search.** Two fixes so everyday company names resolve correctly. (1) A small alias map for names Finnhub doesn't index under their common name (_Google_ → Alphabet, _Facebook_ → Meta, _Snapchat_ → Snap, _McDonalds_ → MCD). (2) `resolveTicker` now prefers the **U.S. listing** when Finnhub returns foreign exchanges first — a "Nike" search returned the Warsaw listing (`NIKE.WA`) ahead of `NKE`, so Nike, Visa, and Ford had all been failing with a misleading "U.S.-listed only" error.
 
 ### Challenges — the bugs the sweep caught
 
@@ -315,11 +318,11 @@ graph LR
   API -->|"Mongoose"| Mongo[("MongoDB Atlas<br/>users + stocks +<br/>history + watchlists")]
 ```
 
-Full test suite after Week 4 — **102 tests passing** (68 backend + 34 frontend):
+Full test suite after Week 4 — **114 tests passing** (80 backend + 34 frontend):
 
 ```text
 # Backend  (Mocha + Chai + Supertest)
-  68 passing
+  80 passing
 
 # Frontend (Vitest + React Testing Library)
   Test Files  8 passed (8)
@@ -341,7 +344,7 @@ By the end of Week 3 the app was **live, deployed, and tested** — the whole st
 
 ### Future improvements (post-capstone)
 
-- Watchlist auto-refresh on a schedule (instead of relying on the user to revisit a ticker's page).
+- **Automatic** watchlist refresh on a schedule. Manual refresh now exists (a per-stock **Refresh** button and a watchlist **Refresh all**); doing it automatically on a timer is the remaining step.
 - Sector-relative grading — _true peer comparison_ (e.g. grade a bank against other banks). Week 4 added sector **fit** awareness (N/A for banks/REITs, caveats for utilities); grading a stock relative to its sector peers is still ahead.
 - A "Why this grade?" plain-English explanation generated from the criteria. Week 4 took a first step with N/A reasons and sector caveats.
 - Email alerts when a watchlist ticker's grade changes.

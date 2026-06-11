@@ -242,7 +242,7 @@ The URL accepts either a ticker (`/grade/AAPL`) or a company name (`/grade/Apple
 |   [x] Recent free cash flow growth (TTM)               |
 |       TTM: $112B      vs latest: $101B                 |
 |                                                        |
-|   Graded at: 2026-06-03 08:13 (from cache)             |
+|   Last graded: 2026-06-03 08:13      [ Refresh ]       |
 |                                                        |
 +--------------------------------------------------------+
 ```
@@ -250,7 +250,9 @@ The URL accepts either a ticker (`/grade/AAPL`) or a company name (`/grade/Apple
 - **Main:** Canonical ticker + share price + company name header, letter grade card, 5-criteria checklist with the actual numbers. Two optional banners sit just below the grade card:
   - an **N/A reason** (grey) when the stock can't be graded — e.g. *"Free cash flow can't be computed … normal for banks, insurers, and other financial firms"* or *"Financial data looks outdated …"*;
   - a **sector caveat** (amber) on a real grade where free cash flow is only a rough proxy — REITs, insurers, utilities (e.g. *"This is a REIT … judged on Funds From Operations …"*).
-- **Actions:** "Add to watchlist" → POST `/api/watchlist` then show inline success/failure alert.
+- **Actions:**
+  - "Add to watchlist" → POST `/api/watchlist` then show inline success/failure alert.
+  - "Refresh" → GET `/api/grade/<ticker>?refresh=1` bypasses the 24h cache and re-grades, updating the "Last graded" time.
 - **States:**
   - *happy* → grade + criteria render (with a sector caveat banner for REITs/insurers/utilities).
   - *N/A* → letter card shows `N/A` and the grey reason banner explains why (stale data, or a sector the revenue/FCF model doesn't fit). No criteria list.
@@ -268,10 +270,12 @@ The URL accepts either a ticker (`/grade/AAPL`) or a company name (`/grade/Apple
 +------------------------------------------------------------------------------+
 |                                                                              |
 |   Your watchlist                                                             |
-|   The "Current" grade reflects the latest cached grade. To refresh a         |
-|   ticker, open its page from the Ticker column.                              |
+|   The "Current" grade is the most recent grade we have. Click "Refresh all"  |
+|   to update every row with the latest data.                                  |
 |                                                                              |
 |   Add:  [ e.g. MSFT or Microsoft ] [ Add ]                                   |
+|                                                                              |
+|   [ Refresh all ]   Updated: 8:14:02 AM                                      |
 |                                                                              |
 |   Ticker | Name              | Last price   | Added     | At add | Now | Change       | |
 |   ------ | ----------------- | ------------ | --------- | ------ | --- | ------------ | |
@@ -287,7 +291,8 @@ The URL accepts either a ticker (`/grade/AAPL`) or a company name (`/grade/Apple
 - **Actions:**
   - **Add by ticker or name** (POST `/api/watchlist`) — backend resolves names to canonical tickers and freezes the current grade as `gradeAtAdd`.
   - **Remove** a row (DELETE `/api/watchlist/:ticker`).
-  - Click the ticker link → navigate to its Grade Detail (this also refreshes the cache, which propagates back to the Watchlist on next load).
+  - **Refresh all** (POST `/api/watchlist/refresh`) → re-grade every row at once (cache-bypassed), then show an "Updated `<time>`" stamp.
+  - Click the ticker link → navigate to its Grade Detail, where a per-stock **Refresh** button is also available.
 - **Responsive behavior:** at phone width (`< 576px`) the four lower-priority columns (Name, Last price, Added, Grade at add) are hidden — only Ticker, Current, Change, and Remove remain visible so the table fits a 360px viewport without horizontal scroll. All 8 columns return at ≥576px.
 - **States:** *happy* → table renders. *loading* → "Loading your watchlist…" *empty* → "Your watchlist is empty. Add a ticker above." *error* → red Bootstrap Alert with the failure reason.
 
