@@ -240,12 +240,12 @@ Goal by end of class: a complete, tested backend — auth (email/password + JWT)
 
 ### Class 8 — Presentations
 
-- [ ] Rehearse demo script: sign in → grade a ticker → add to watchlist → compare two tickers
-- [ ] Walk through the architecture diagram (frontend → API → provider → Yahoo → Mongo)
-- [ ] Explain the grading algorithm in plain English (5 criteria → letter grade)
-- [ ] Share what was learned (auth, provider abstraction, deployment, testing)
-- [ ] Have a backup plan for the Render cold-start (warm the backend before demo)
-- [ ] Present
+- [x] Rehearse demo script: sign in → grade a ticker → add to watchlist → compare two tickers
+- [x] Walk through the architecture diagram (frontend → API → provider → Finnhub → Mongo)
+- [x] Explain the grading algorithm in plain English (5 criteria → letter grade)
+- [x] Share what was learned (auth, provider abstraction, deployment, testing)
+- [x] Have a backup plan for the Render cold-start (warm the backend before demo)
+- [x] Present
 
 ---
 
