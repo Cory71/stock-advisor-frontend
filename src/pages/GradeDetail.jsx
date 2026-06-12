@@ -4,11 +4,12 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Card, Alert, Spinner, Button, Badge } from 'react-bootstrap';
+import { Card, Alert, Spinner, Button, Badge, Row, Col } from 'react-bootstrap';
 import { apiFetch } from '../lib/apiFetch';
 import { useAuth } from '../context/AuthContext';
 import { useAutoDismiss } from '../lib/useAutoDismiss';
 import { usePageTitle } from '../lib/usePageTitle';
+import GradeScaleCard from '../components/GradeScaleCard';
 
 // Pick a Bootstrap colour variant for the letter grade.
 function gradeColor(grade) {
@@ -189,6 +190,9 @@ function GradeDetail() {
         <Alert variant={addInfo.variant}>{addInfo.message}</Alert>
       )}
 
+      <Row className="g-4">
+        {/* Left column: the grade, its criteria, and the freshness line */}
+        <Col lg={7}>
       {/* Big letter-grade card */}
       <Card
         className={`text-center mb-4 border-${gradeColor(data.grade)}`}
@@ -256,6 +260,13 @@ function GradeDetail() {
           </Button>
         </div>
       )}
+        </Col>
+
+        {/* Right column: explains what the A–F letter means */}
+        <Col lg={5}>
+          <GradeScaleCard />
+        </Col>
+      </Row>
     </div>
   );
 }
