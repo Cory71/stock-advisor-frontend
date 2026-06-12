@@ -168,3 +168,8 @@ See the `/docs` folder for:
 - [`wireframes.md`](./docs/wireframes.md) — ASCII wireframes for every page
 - [`devlog.md`](./docs/devlog.md) — weekly development log
 - [`architecture.excalidraw`](./docs/architecture.excalidraw) — architecture diagram source
+
+Planning was tracked on a GitHub Projects board, class by class (mirrors
+[`classplan.md`](./docs/classplan.md)):
+
+- [StockGrader Capstone — 8 Classes](https://github.com/users/Cory71/projects/6) — live project board
