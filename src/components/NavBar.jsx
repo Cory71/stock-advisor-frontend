@@ -34,8 +34,9 @@ function NavBar() {
             // it stacks in DOM order: greeting header, page links, divider,
             // then settings + sign out (see NavBar.css).
             <>
-              {/* Greeting — a small header on top for mobile; sits on the right on desktop */}
-              <Navbar.Text className="nav-greeting order-lg-2">
+              {/* Greeting — a small header on top for mobile; sits on the right on
+                  desktop. me-lg-3 adds a gap before the Dark toggle (desktop only). */}
+              <Navbar.Text className="nav-greeting order-lg-2 me-lg-3">
                 Welcome, {user.displayName || user.email}
               </Navbar.Text>
 
