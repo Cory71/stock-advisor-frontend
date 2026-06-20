@@ -226,7 +226,7 @@ Grade Detail for AAPL — canonical ticker, share price + currency, company name
 
 ![Grade Detail for AAPL on the live app](./images/grade-aapl.png)
 
-Watchlist with three rows, each showing the "grade at add" snapshot vs. the current cached grade plus the change column:
+Watchlist with four rows, each showing the "grade at add" snapshot vs. the current cached grade plus the change column (and the "Refresh all" control above the table):
 
 ![Watchlist on the live app](./images/watchlist.png)
 
