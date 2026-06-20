@@ -222,7 +222,7 @@ Home page on the live app — search box on the left, "About StockGrader" card b
 
 ![Home page on the live app](./images/home-logged-in.png)
 
-Grade Detail for AAPL — canonical ticker, share price + currency, company name, big letter grade, and the 5-criterion checklist with the actual numbers used:
+Grade Detail for AAPL — canonical ticker, share price + currency, company name, big letter grade, and the 5-criterion checklist with the actual numbers used. A "How the grade works" card explains the A–F scale, and a "Last graded" timestamp offers an on-demand Refresh:
 
 ![Grade Detail for AAPL on the live app](./images/grade-aapl.png)
 
