@@ -2,7 +2,7 @@
 // shows the letter grade as a big card, lists the 5 criteria with the actual
 // numbers, and lets the user add the ticker to their watchlist.
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Card, Alert, Spinner, Button, Badge, Row, Col } from 'react-bootstrap';
 import { apiFetch } from '../lib/apiFetch';
@@ -10,6 +10,9 @@ import { useAuth } from '../context/AuthContext';
 import { useAutoDismiss } from '../lib/useAutoDismiss';
 import { usePageTitle } from '../lib/usePageTitle';
 import GradeScaleCard from '../components/GradeScaleCard';
+// Loaded on demand: the charting library is ~100 kB gzipped and this is the
+// only page that draws a chart, so it stays out of the initial bundle.
+const TrendChart = lazy(() => import('../components/TrendChart'));
 
 // Pick a Bootstrap colour variant for the letter grade.
 function gradeColor(grade) {
@@ -260,6 +263,12 @@ function GradeDetail() {
           </Button>
         </div>
       )}
+
+      {/* Revenue + free cash flow trend. Hides itself when there aren't at
+          least two years of labelled data, so it never leaves an empty frame. */}
+      <Suspense fallback={null}>
+        <TrendChart rawData={data.rawData} />
+      </Suspense>
         </Col>
 
         {/* Right column: explains what the A–F letter means */}
