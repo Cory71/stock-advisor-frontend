@@ -90,19 +90,41 @@ misleading user-facing message fixed.*
 
 ---
 
-## 1. Charts of revenue and free-cash-flow trends
+## 1. Charts of revenue and free-cash-flow trends ✅
 
-Best value-per-hour on the list. The data is **already in `rawData`** on every
-cached stock — no new API calls, no backend work, no rate-limit exposure. Pure
-frontend, entirely in this repo.
+**Assumed pure frontend. It wasn't** — the cached data had no year labels, and
+revenue and free cash flow don't always cover the same years, so the chart
+needed a small backend addition first.
 
-- [ ] Choose a chart library (Recharts vs. Chart.js — check bundle size against the Vite build)
-- [ ] Build `<TrendChart />` — annual revenue + FCF series, oldest → newest
-- [ ] Add it to the Grade Detail page below the criteria checklist
-- [ ] Handle short series gracefully (some stocks have only 2 annual columns)
-- [ ] Respect dark mode (`data-bs-theme`) — axis, grid, and series colors
-- [ ] Responsive down to 576px, matching the watchlist's column-hiding approach
-- [ ] Vitest + RTL coverage for the component
+- [x] Chose **Recharts**, loaded with `React.lazy` so it stays out of the initial
+      bundle. Inlined it pushed the entry past Vite's 500 kB warning (194 kB
+      gzipped); split out, the entry is **84 kB gz** with a separate 110 kB
+      chunk loaded only on a grade page.
+- [x] **Backend: send `annualYears` and `annualFcfYears`.** The two value arrays
+      can cover different years — a year with no readable CapEx is dropped from
+      the cash-flow list, so NVIDIA has revenue for 2022–2026 and cash flow only
+      for 2024–2026. Pairing them by position would plot cash flow against the
+      wrong years. Purely additive, so grading was untouched.
+- [x] `src/lib/chartData.js` — pure `buildTrendSeries()` joins the series **on
+      the year, never on array position**; a year with no figure renders as a
+      gap, not a misleading zero.
+- [x] `<TrendChart />` — grouped bars on **one shared axis**, so cash flow reads
+      as a real fraction of revenue. Separate axes would scale each series
+      independently and could make a small cash burn look larger than revenue.
+- [x] Zero reference line, so a negative cash-flow year reads below the axis
+- [x] Hides itself below 2 years of labelled data — N/A stocks and pre-backfill
+      docs never show an empty frame
+- [x] Dark and light mode verified; 576px verified with no horizontal overflow
+- [x] Plain HTML legend replaces Recharts' own, which lists the series in the
+      opposite order from the bars and ignores a custom `payload`
+- [x] 18 tests (frontend 34 → **52**), including the NVIDIA-shaped mismatch
+- [x] Backfilled all 80 cached stocks: **0 grade moves, 0 failures**; 67 carry
+      year arrays (the other 13 are the foreign issuers with no filings at all)
+
+**Found while building, not fixed:** Duke's chart x-axis reads 2019, 2020, 2021,
+**2024, 2025** — its 2022 and 2023 filings parse as having no revenue, the same
+missing-concept class as the item 0 bugs. Grading already works around it, so
+nothing is broken, but the gap is real and worth a look.
 
 ---
 
