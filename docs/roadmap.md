@@ -44,7 +44,13 @@ misreading their filings.
       making long-term growth compare a year against itself and always fail.
       Now keeps one report per year (largest revenue = parent consolidated),
       taking its cash-flow figures from that same filing.
-- [x] 6 unit tests covering both bugs; full suite 80 → 86 passing
+- [x] **Copy fix: stop telling REITs and utilities they are financial firms.** The
+      "free cash flow can't be computed" message claimed the company was a bank
+      or insurer, but of the six stocks that see it only `BAC` and `JPM` are —
+      `NNN` is a REIT, `NEE` a utility, `SYRE` biotech, `UUU` electrical
+      equipment. Reworded to cover both cases; all six re-graded so the
+      corrected text is live.
+- [x] 7 unit tests covering both bugs and the reworded message; suite 80 → 87
 - [x] Regression check: all 59 currently-graded tickers re-fetched and re-graded
       against live Finnhub — **0 changed, 0 errors**
 - [x] Verified end-to-end in the running app (local backend + Vite): `DUK` renders
