@@ -121,10 +121,30 @@ needed a small backend addition first.
 - [x] Backfilled all 80 cached stocks: **0 grade moves, 0 failures**; 67 carry
       year arrays (the other 13 are the foreign issuers with no filings at all)
 
-**Found while building, not fixed:** Duke's chart x-axis reads 2019, 2020, 2021,
-**2024, 2025** — its 2022 and 2023 filings parse as having no revenue, the same
-missing-concept class as the item 0 bugs. Grading already works around it, so
-nothing is broken, but the gap is real and worth a look.
+**Found while building, then fixed.** Duke's chart x-axis read 2019, 2020, 2021,
+**2024, 2025** — its 2022 and 2023 filings parse as having no revenue. Chasing
+that turned up nine cached stocks with year gaps and two real problems:
+
+- [x] **The chart hid its own gaps.** Bars sit evenly apart, so a missing year
+      read as a normal one-year step. Coupa charts 2012, 2013, 2022, 2024, 2025
+      — a *nine-year* hole that looked like a single step. The caption now names
+      the missing years, collapsing runs into ranges ("2014–2021, and 2023").
+- [x] **The lookback window was measured in rows, not years.** `slice(-5)` takes
+      the last five *entries*, which only equals five years when none are
+      missing. Coupa's five rows spanned **thirteen years**, so its long-term
+      growth criterion compared 2012 against 2025 while Apple compared five —
+      exactly what the cap was written to prevent. Now filtered by calendar year,
+      anchored to each stock's own latest filing.
+- [x] Grade impact measured across all 80 cached stocks: **1 moved.** Walmart
+      C → B, because its window was 2021–2026 (six years) and its FY2021 free
+      cash flow was inflated by pandemic inventory swings — a year no other
+      stock's window reached. On the standard window (2022–2026, $11.1B →
+      $14.9B) the cash-flow growth criterion passes honestly.
+- [x] 17 more tests (frontend 52 → 64, backend 92 → 97)
+
+This was the fifth instance in one day of the same root cause: an unmatched XBRL
+concept silently dropping a year. Worth a dedicated pass over concept coverage
+before it surfaces a sixth time — see the note at the end of this file.
 
 ---
 
@@ -224,6 +244,27 @@ dropped off the README's Future Improvements — worth restoring there.)*
 - [ ] Confirm dark mode doesn't leak into the printed output
 
 ---
+
+## Worth doing before the next feature — XBRL concept coverage
+
+Five separate times in one day, a stock's data was silently wrong or missing
+because a filing used an XBRL concept the provider didn't match:
+
+1. Duke's post-2016 revenue (`RegulatedAndUnregulatedOperatingRevenue`)
+2. Combined 10-K filings duplicating years (utilities with subsidiary registrants)
+3. NextEra's capex split across two company-prefixed segment concepts
+4. Duke's 2022 and 2023 revenue — still unmatched
+5. Nine stocks with year gaps, which broke the lookback window
+
+Each was found by accident while building something else, and each produced a
+*plausible* wrong answer rather than an error — the kind that hides well. A
+deliberate pass would be cheap: for every cached stock, list the years that
+parse versus the years Finnhub actually returns, and look at what the gaps have
+in common. That turns a recurring surprise into a known, bounded list.
+
+- [ ] Report parsed years vs. available years for all 80 cached stocks
+- [ ] Group the gaps by the concept that's missing
+- [ ] Add the concepts that are clearly safe; document the ones that aren't
 
 ## Known limitation — not fixable in code
 
