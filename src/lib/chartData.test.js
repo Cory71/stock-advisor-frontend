@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { buildTrendSeries, hasEnoughTrendData, formatBillions } from './chartData';
+import {
+  buildTrendSeries, hasEnoughTrendData, formatBillions,
+  missingYears, describeYears,
+} from './chartData';
 
 describe('buildTrendSeries', () => {
   it('pairs each revenue value with its own year', () => {
@@ -99,5 +102,58 @@ describe('formatBillions', () => {
   it('shows a dash for a missing value', () => {
     expect(formatBillions(null)).to.equal('—');
     expect(formatBillions(undefined)).to.equal('—');
+  });
+});
+
+describe('missingYears', () => {
+  const series = (years) => years.map((year) => ({ year, revenue: 1, fcf: 1 }));
+
+  it('finds nothing when the years run consecutively', () => {
+    expect(missingYears(series([2023, 2024, 2025]))).to.deep.equal([]);
+  });
+
+  it('finds a single skipped year', () => {
+    expect(missingYears(series([2021, 2023, 2024]))).to.deep.equal([2022]);
+  });
+
+  // Duke Energy: its 2022 and 2023 filings parse as having no revenue.
+  it('finds two skipped years', () => {
+    expect(missingYears(series([2019, 2020, 2021, 2024, 2025]))).to.deep.equal([2022, 2023]);
+  });
+
+  // Coupa: a nine-year hole that the evenly-spaced bars would otherwise hide.
+  it('finds a long run of skipped years', () => {
+    expect(missingYears(series([2012, 2013, 2022, 2024, 2025])))
+      .to.deep.equal([2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2023]);
+  });
+
+  it('needs at least two years to report a gap', () => {
+    expect(missingYears(series([2025]))).to.deep.equal([]);
+    expect(missingYears([])).to.deep.equal([]);
+    expect(missingYears(null)).to.deep.equal([]);
+  });
+});
+
+describe('describeYears', () => {
+  it('reads a single year plainly', () => {
+    expect(describeYears([2022])).to.equal('2022');
+  });
+
+  it('joins two years with "and"', () => {
+    expect(describeYears([2022, 2023])).to.equal('2022 and 2023');
+  });
+
+  it('collapses a consecutive run into a range', () => {
+    expect(describeYears([2014, 2015, 2016, 2017])).to.equal('2014–2017');
+  });
+
+  it('separates a range from a stray year', () => {
+    expect(describeYears([2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2023]))
+      .to.equal('2014–2021, and 2023');
+  });
+
+  it('returns an empty string for no years', () => {
+    expect(describeYears([])).to.equal('');
+    expect(describeYears(null)).to.equal('');
   });
 });

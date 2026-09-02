@@ -14,7 +14,10 @@ import {
   ReferenceLine, ResponsiveContainer,
 } from 'recharts';
 import { useTheme } from '../context/ThemeContext';
-import { buildTrendSeries, hasEnoughTrendData, formatBillions } from '../lib/chartData';
+import {
+  buildTrendSeries, hasEnoughTrendData, formatBillions,
+  missingYears, describeYears,
+} from '../lib/chartData';
 
 // Bootstrap's blue and teal, which already suit both themes.
 const REVENUE_COLOR = '#0d6efd';
@@ -57,6 +60,7 @@ function TrendChart({ rawData }) {
   if (!hasEnoughTrendData(series)) return null;
 
   const colors = chartColors(theme);
+  const gaps = missingYears(series);
 
   return (
     <Card className="mb-4">
@@ -103,6 +107,16 @@ function TrendChart({ rawData }) {
         <p className="text-body-secondary small mb-0 mt-2">
           Full-year figures from each annual report. A missing cash-flow bar means
           that year's filing didn't report capital spending we could read.
+          {/* The bars sit evenly apart, so a skipped year would otherwise look
+              like a normal one-year step. Name the missing years outright. */}
+          {gaps.length > 0 && (
+            <>
+              {' '}
+              <strong>{describeYears(gaps)}</strong>
+              {gaps.length === 1 ? ' is' : ' are'} not shown — those filings
+              couldn't be read, so the bars skip from one year to the next.
+            </>
+          )}
         </p>
       </Card.Body>
     </Card>

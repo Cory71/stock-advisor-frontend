@@ -62,6 +62,24 @@ describe('<TrendChart />', () => {
     expect(renderChart({}).container).toBeEmptyDOMElement();
   });
 
+  // The bars are evenly spaced, so a skipped year would read as a normal step
+  // unless the caption says otherwise.
+  it('names the years that are missing entirely', () => {
+    renderChart({
+      annualYears: [2019, 2020, 2021, 2024, 2025],
+      annualRevenues: [10e9, 20e9, 30e9, 40e9, 50e9],
+      annualFcfYears: [2019, 2020, 2021, 2024, 2025],
+      annualFreeCashFlows: [1e9, 2e9, 3e9, 4e9, 5e9],
+    });
+    expect(screen.getByText('2022 and 2023')).toBeInTheDocument();
+    expect(screen.getByText(/are not shown/i)).toBeInTheDocument();
+  });
+
+  it('says nothing about gaps when the years run consecutively', () => {
+    renderChart(threeYears);
+    expect(screen.queryByText(/not shown/i)).not.toBeInTheDocument();
+  });
+
   it('still renders when a year has no cash-flow figure', () => {
     renderChart({
       annualYears: [2023, 2024, 2025],

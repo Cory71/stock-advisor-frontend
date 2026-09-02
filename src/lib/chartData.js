@@ -40,6 +40,50 @@ export function hasEnoughTrendData(series) {
   return Array.isArray(series) && series.length >= 2;
 }
 
+// Years between the first and last bar that have no data at all.
+//
+// The bars are evenly spaced, so a stock missing a year looks continuous unless
+// we say otherwise — Coupa (CCC) charts 2012, 2013, 2022, 2024, 2025, and a
+// nine-year hole would otherwise read as one step. Returns [] when the years
+// run consecutively.
+export function missingYears(series) {
+  if (!Array.isArray(series) || series.length < 2) return [];
+
+  const present = new Set(series.map((row) => row.year));
+  const first = series[0].year;
+  const last = series[series.length - 1].year;
+
+  const gaps = [];
+  for (let year = first + 1; year < last; year += 1) {
+    if (!present.has(year)) gaps.push(year);
+  }
+  return gaps;
+}
+
+// Turn a list of years into something readable: "2023", "2022 and 2023", or
+// "2014-2021, and 2023" for longer runs.
+export function describeYears(years) {
+  if (!Array.isArray(years) || years.length === 0) return '';
+  if (years.length === 1) return String(years[0]);
+  if (years.length === 2) return `${years[0]} and ${years[1]}`;
+
+  // Collapse consecutive runs so a long gap reads as a range.
+  const runs = [];
+  let start = years[0];
+  let prev = years[0];
+  for (const year of years.slice(1)) {
+    if (year !== prev + 1) {
+      runs.push(start === prev ? `${start}` : `${start}–${prev}`);
+      start = year;
+    }
+    prev = year;
+  }
+  runs.push(start === prev ? `${start}` : `${start}–${prev}`);
+
+  if (runs.length === 1) return runs[0];
+  return `${runs.slice(0, -1).join(', ')}, and ${runs[runs.length - 1]}`;
+}
+
 // Format a dollar amount as a short label for axis ticks and tooltips,
 // e.g. 32_240_000_000 -> "$32.2B", -1_700_000_000 -> "-$1.7B".
 export function formatBillions(value) {
