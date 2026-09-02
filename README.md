@@ -152,11 +152,16 @@ Same suite but re-runs whenever a file changes — handy during development.
 
 ## Future Improvements
 
+Planned and sequenced in [`roadmap.md`](./docs/roadmap.md), which records the
+dependencies between them:
+
+- **Charts** of revenue and free-cash-flow trends — the data is already cached, so this is frontend-only.
 - **Automatic watchlist refresh** on a schedule — the manual per-stock **Refresh** and **Refresh all** exist today; running it on a timer is the next step.
-- **Sector-relative grading** — grade a stock against its true peers (e.g. a bank vs. other banks), building on the current sector-fit awareness.
+- **Bank grading** — banks have no capital expenditure, so the revenue/FCF model returns N/A for them. A second criteria set (ROE, return on assets, efficiency ratio) would grade them properly.
+- **Sector-relative grading** — compare a stock against its own sector's median rather than against every company, building on the current sector-fit awareness.
 - **Richer "Why this grade?" explanations** generated from the criteria, extending today's N/A reasons and sector caveats.
 - **Email alerts** when a watchlist ticker's grade changes.
-- **Charts** of revenue and free-cash-flow trends.
+- **PDF export** of a graded report.
 
 ## Project Docs
 
@@ -164,10 +169,12 @@ See the `/docs` folder for:
 
 - [`proposal.md`](./docs/proposal.md) — original project pitch
 - [`stock-advisor-plan.md`](./docs/stock-advisor-plan.md) — detailed architecture + data model
+- [`roadmap.md`](./docs/roadmap.md) — planned upgrades, in build order, with dependencies
 - [`classplan.md`](./docs/classplan.md) — class-by-class progress checklist
 - [`wireframes.md`](./docs/wireframes.md) — ASCII wireframes for every page
 - [`devlog.md`](./docs/devlog.md) — weekly development log
 - [`architecture.excalidraw`](./docs/architecture.excalidraw) — architecture diagram source
+- [`specs/`](./docs/specs/) — design specs for larger features
 
 Planning was tracked on a GitHub Projects board, class by class (mirrors
 [`classplan.md`](./docs/classplan.md)):

@@ -344,8 +344,115 @@ By the end of Week 3 the app was **live, deployed, and tested** — the whole st
 
 ### Future improvements (post-capstone)
 
+> These are now planned and sequenced in [`roadmap.md`](./roadmap.md), which is the
+> live list. Kept here as the thinking at the time of submission.
+
 - **Automatic** watchlist refresh on a schedule. Manual refresh now exists (a per-stock **Refresh** button and a watchlist **Refresh all**); doing it automatically on a timer is the remaining step.
 - Sector-relative grading — _true peer comparison_ (e.g. grade a bank against other banks). Week 4 added sector **fit** awareness (N/A for banks/REITs, caveats for utilities); grading a stock relative to its sector peers is still ahead.
 - A "Why this grade?" plain-English explanation generated from the criteria. Week 4 took a first step with N/A reasons and sector caveats.
 - Email alerts when a watchlist ticker's grade changes.
 - Charts of revenue and FCF trends.
+
+---
+
+## Post-capstone — Provider Bug Hunt (September 2026)
+
+The capstone is submitted. This section logs work done since, as I pick off the
+improvements list.
+
+### What I built
+
+- Wrote [`roadmap.md`](./roadmap.md) — the remaining upgrades in build order, with
+  the dependencies between them made explicit. Three of them aren't free-floating:
+  email alerts can't exist without scheduled re-grading, sector baselines are
+  medians over the cache so they need fresh data to be meaningful, and both the
+  "Why this grade?" explanations and the PDF export just *render* everything else,
+  so building either early means rebuilding it later.
+- Wrote a design spec for sector-aware grading — a second criteria set for banks
+  (which currently return N/A because they have no capital expenditure), plus
+  comparing a stock against its sector's median instead of against every company.
+- Fixed two provider bugs found while trying to do something trivial.
+
+### Challenges — a five-minute job that wasn't
+
+Three stocks (`DUK`, `NEE`, `B`) were sitting at N/A with "financial data looks
+outdated." I assumed a stale cache and planned a no-code refresh.
+
+Re-grading changed nothing. But Finnhub *did* have a 2025 annual report for Duke,
+while the provider insisted the latest annual was **2016**. Dumping what the
+provider actually returned gave it away:
+
+```text
+annualRevenues: 22.7B  22.7B  22.7B  22.7B  22.7B
+```
+
+Five identical values isn't data. Two separate bugs, both invisible until I looked:
+
+1. **Regulated utilities reported no revenue the parser recognised.** Duke files
+   revenue only under `us-gaap_RegulatedAndUnregulatedOperatingRevenue` — not in
+   my concepts list. So every filing from 2017 onward was silently dropped, 2016
+   became the newest surviving year, and the freshness guard correctly flagged it
+   as ancient. The guard wasn't wrong; it was fed garbage.
+2. **Combined 10-K filings duplicated years.** Duke files one 10-K covering the
+   parent *and* its subsidiary registrants, and Finnhub returns a separate report
+   for each. With no dedup, my "five annual values" were five rows of the **same
+   year** — so "latest > earliest" compared 2016 against 2016 and could never pass.
+
+The second one is the one that unsettles me. It was silent: only three cached
+stocks had duplicate values and all three were already N/A, so nothing looked
+broken. But `AEP` (6 reports/yr) or `Southern` (3–4/yr) would have graded *wrong* —
+a confident, too-low letter rather than an honest N/A. A bug that produces a
+plausible answer hides far better than one that crashes.
+
+Fix: keep one report per year, choosing the largest revenue (the parent's
+consolidated figure) and taking its cash-flow numbers from that same filing, so
+revenue and FCF can never come from different registrants.
+
+`DUK` now grades **D** — with the Utilities caveat finally showing, which it never
+could before, because the stock always exited down the N/A path first.
+
+`NEE` still returns N/A, but for the *right* reason now: its capital expenditure
+appears only under company-specific tags (`nee_CapitalExpendituresOfFPL`). The one
+standard concept present is an accrual disclosure, not a cash outflow — using it
+would produce a wrong free-cash-flow number, so I left it alone rather than guess.
+
+`B` stays N/A and should. Barrick took that ticker from Barnes Group, so Finnhub
+maps it to a filer that stopped reporting in 2023 — exactly the case the freshness
+guard exists for.
+
+### What I learned
+
+- **A correct guard firing on bad input looks identical to the problem it guards
+  against.** I spent the first few minutes convinced Finnhub had stale data. The
+  guard was working perfectly; the bug was two layers upstream.
+- **Silently dropping unparseable data is worse than failing loudly.** Skipping
+  reports with no revenue concept seemed defensive when I wrote it. It meant a
+  live company looked like it stopped filing a decade ago.
+- **Test against reality, not intuition.** While designing the bank criteria I
+  picked sensible-sounding thresholds twice — ROE > 10%, ROA > 1% — and both were
+  wrong once I ran them against 16 real banks. Five big banks sat within 0.1pp of
+  the ROA line, so Wells Fargo scored an F by missing it by 0.01. Thresholds
+  belong where the data says, not where they sound right.
+- **A guarantee needs a test, not an argument.** I was confident the fix touched
+  nothing else. Confidence isn't evidence, so I re-fetched and re-graded all 59
+  currently-graded tickers against live data: 0 changed, 0 errors.
+
+### Screenshots / milestones
+
+Full suite after the fix — **120 tests passing** (86 backend + 34 frontend), the
+six new ones covering both bugs:
+
+```text
+# Backend  (Mocha + Chai + Supertest)
+  86 passing
+
+# Frontend (Vitest + React Testing Library)
+  Test Files  8 passed (8)
+       Tests  34 passed (34)
+```
+
+Regression check across every currently-graded ticker, re-fetched live:
+
+```text
+checked: 59 | changed: 0 | errors: 0
+```

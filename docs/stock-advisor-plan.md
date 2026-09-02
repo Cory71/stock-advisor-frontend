@@ -64,7 +64,8 @@ Real-world provider data is messy, so the grader guards against misleading outpu
 
 - **Freshness guard:** if the most recent annual report is more than ~2 years old (measured from its period-end date), the data likely belongs to a defunct SEC filer — e.g. a ticker that changed hands. The stock is returned **N/A** with an explanatory `reason` rather than a stale grade.
 - **Sector fit:** banks, insurers, and other financial firms have no capital expenditure, so free cash flow can't be computed — they return **N/A** with a `reason`. REITs, insurers, and utilities that *do* grade carry a `note` caveat, because revenue/FCF is only a rough proxy for those business models (they're judged on FFO, book value, regulated returns, etc.).
-- **Concept robustness:** revenue uses the largest matching XBRL concept (avoids grabbing a sub-line), with a fallback for filers that only report gross "including assessed tax" revenue; CapEx matches a range of us-gaap concept variants across industries.
+- **Concept robustness:** revenue uses the largest matching XBRL concept (avoids grabbing a sub-line), with a fallback for filers that only report gross "including assessed tax" revenue; CapEx matches a range of us-gaap concept variants across industries. Regulated utilities are covered too — several (e.g. Duke Energy) report no standard revenue line at all, only `RegulatedAndUnregulatedOperatingRevenue`.
+- **One report per year:** some companies file a *combined* 10-K covering the parent plus its subsidiary registrants (common for utilities — Duke, AEP, Southern, Dominion), and the provider returns one report per registrant. We keep only the largest-revenue report for each year — the parent's consolidated figure — taking its cash-flow numbers from that same filing. Without this, several rows of the *same* year would fill the annual series, and long-term growth would compare a year against itself.
 - **Coverage / non-US symbols:** the Finnhub free tier covers U.S.-listed stocks (NYSE/Nasdaq). A non-US symbol — e.g. a Toronto `.TO` listing — returns a clear "StockGrader currently only supports U.S.-listed stocks" message rather than a confusing error. (A shared `friendlyError` helper keeps provider internals — HTTP codes, the provider name — out of every user-facing message.)
 
 ## 4. Core Features (MVP)
@@ -82,6 +83,10 @@ Real-world provider data is messy, so the grader guards against misleading outpu
 - **Page footer:** `StockGrader © <year>` on every page; year computed at render time so it auto-updates each January.
 
 ## 5. Stretch Features (post-MVP)
+
+These are now planned and sequenced in [`roadmap.md`](./roadmap.md), which is the
+live list — it also records dependencies between them and adds bank grading,
+which came out of later work. Kept here as the original post-MVP thinking:
 
 - Watchlist auto-refresh / re-grade on a schedule.
 - Charts of revenue and cash flow trends.
@@ -214,7 +219,7 @@ Backend uses **Mocha + Chai + Supertest** with `mongodb-memory-server` for isola
 
 - **Unit tests** on the grading function (Mocha + Chai) — 30 tests covering each criterion, the score→grade mapping, the FCF-must-be-positive growth rule, the freshness guard, sector caveats, and N/A edge cases.
 - **API tests** with Supertest (driven by Mocha) for each endpoint, with the Finnhub client stubbed out — 41 tests across `auth`, `grade`, `watchlist`, `compare`, and `history` routes, including the on-demand cache-bypass refresh paths.
-- **Provider tests** on the Finnhub adapter — 9 tests covering the common-name aliases (e.g. "Google" → `GOOGL`, "Facebook" → `META`) and the U.S.-listing preference that picks `NKE`/`V` over Finnhub's foreign listings (`NIKE.WA`, `VISA.RO`). (80 backend total.)
+- **Provider tests** on the Finnhub adapter — 15 tests covering the common-name aliases (e.g. "Google" → `GOOGL`, "Facebook" → `META`), the U.S.-listing preference that picks `NKE`/`V` over Finnhub's foreign listings (`NIKE.WA`, `VISA.RO`), and annual-report parsing: regulated-utility revenue concepts plus the one-report-per-year rule for combined filings. (86 backend total.)
 - **Component / helper tests** with Vitest + React Testing Library — 34 tests across the `grade` helpers, `useWarmBackend`, `<TickerSearch />`, `<AboutCard />`, `<Footer />`, `<CandlestickFooter />`, and `<PasswordInput />`.
 - **Manual smoke test** across desktop (1280px) + mobile (360px) sizes — verified end-to-end via Playwright on every page.
 

@@ -1,7 +1,5 @@
 # StockGrader — User Flow and Wireframes
 
-> Visual version: [`wireframes.pdf`](./wireframes.pdf)
-
 Planning artifact for the frontend. Maps every path a user can take through the app, and shows a low-fidelity sketch of every screen.
 
 > The wireframes are deliberately rough — boxes, labels, and notes about behaviour. Visual polish comes from Bootstrap during the build phase, not from these sketches.
