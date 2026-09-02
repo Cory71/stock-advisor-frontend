@@ -61,21 +61,32 @@ misreading their filings.
 | Ticker | Before | After | Notes |
 | --- | --- | --- | --- |
 | `DUK` | N/A "outdated" | **D** (2/5) | Utilities caveat now attaches correctly |
-| `NEE` | N/A "outdated" | N/A "no FCF" | Now fails for the *right* reason — see below |
+| `NEE` | N/A "outdated" | **D** (2/5) | Segment capex summed — see below |
 | `B` | N/A "outdated" | N/A "outdated" | Correct: Finnhub's newest filing is 2023 |
 
 `B` is not fixable. Barrick took the ticker from Barnes Group, so Finnhub maps it
 to a filer that stopped reporting — exactly what the freshness guard exists for.
 
-**Follow-up not done:** `NEE` reports capital expenditure only under
-company-prefixed tags (`nee_CapitalExpendituresOfFPL`,
-`nee_CapitalExpendituresOfPublicUtility`). The one standard concept present,
-`us-gaap_CapitalExpendituresIncurredButNotYetPaid`, is an accrual disclosure and
-**not** a cash outflow — using it would produce a wrong free-cash-flow figure.
-Needs a deliberate decision about which company-specific concepts are safe and
-whether they sum to consolidated CapEx. Left alone rather than guessed.
+- [x] **`NEE` capex: sum the segment lines.** NextEra reports no consolidated
+      capex concept, splitting it between Florida Power & Light and its
+      clean-energy arm. Using only the FPL line halves the total (8.7B vs 24.1B
+      for 2025) and flips free cash flow from −11.6B to +3.8B — showing a
+      company in a renewables buildout as cash-generative. The rule sums both,
+      **requires both to be present** (the 2021 filing omits FPL, and adding up
+      the remainder invents an improving trend), and lists parts explicitly
+      because `nee_CapitalExpendituresOfPublicUtility` repeats the FPL figure
+      and would double-count under a pattern match.
+- [x] 5 more tests; suite 87 → **92 passing**
+- [x] Regression re-run after the capex change: 60 tickers, **0 changed**
 
-*Yield: 1 of 3 stocks graded, plus two latent correctness bugs fixed.*
+**Known trade-off:** `COMPANY_CAPEX_CONCEPTS` is a per-company exception — it
+fixes `NEE` only. Other segment-reporting filers (Southern, Dominion) would each
+need their own entry, verified year by year. It follows the existing
+`FINANCIALS_SYMBOL_ALIASES` precedent, but the map should stay small and every
+entry should be justified by real filings rather than guessed.
+
+*Yield: 2 of 3 stocks graded, plus two latent correctness bugs and one
+misleading user-facing message fixed.*
 
 ---
 
