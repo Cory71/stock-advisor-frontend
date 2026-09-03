@@ -11,14 +11,17 @@ they ship, then push so the history matches the progress.
 
 ## Why this order
 
-The sequence isn't arbitrary — three real dependencies drive it:
+The sequence isn't arbitrary — four real dependencies drive it:
 
 1. **Sector baselines need a fresh cache.** Baselines are medians over cached
    `Stock` docs. Stale docs poison the medians, so auto-refresh comes before
    sector context.
 2. **Email alerts need auto-refresh.** You can't alert on a grade change if
    grades only recompute when someone clicks.
-3. **"Why this grade?" and PDF export render everything else.** Building either
+3. **Email alerts also need somewhere to store an opt-in.** That's the account
+   settings menu, so settings comes first — otherwise alerts would have to
+   invent a settings screen anyway.
+4. **"Why this grade?" and PDF export render everything else.** Building either
    before bank criteria, sector context, and charts exist means rebuilding it
    afterward. They go last.
 
@@ -216,15 +219,66 @@ models and a stock's sector standing.
 
 ---
 
-## 6. Email alerts on grade change
+## 6. Account settings menu
+
+An **Options** dropdown in the navbar gathering the controls that belong to the
+person rather than to a stock — starting with the dark-mode toggle that already
+exists, and adding the account actions the app currently has no home for.
+
+Sits before email alerts on purpose: alerts need a per-user opt-in stored
+somewhere, and this is the screen that owns it. Building alerts first would mean
+inventing a settings surface anyway.
+
+- [ ] Options dropdown in the navbar, replacing the inline Dark toggle
+- [ ] Move the dark-mode toggle into it (see the discoverability note below)
+- [ ] **Delete my account** — with a real confirmation step
+- [ ] Cascade the delete: `User`, `SearchHistory`, `WatchlistItem`
+- [ ] Export my data — watchlist and search history as JSON
+- [ ] Clear search history — one action, keeps the account
+- [ ] Change display name (the field exists; only settable at signup today)
+- [ ] `DELETE /api/auth/me` + tests; confirm a deleted user's token stops working
+
+### Things to get right
+
+**The delete must cascade, and must stop at the right boundary.** Three
+collections hold per-user data — `User`, `SearchHistory`, `WatchlistItem`. The
+`Stock` cache must NOT be touched: it is keyed by ticker and shared by everyone,
+so deleting a user's cached grades would remove other people's data too.
+
+**Confirmation can't rely on a password.** Google users have no `passwordHash`
+at all, so "re-enter your password to confirm" fails for them. Use something
+both paths share — typing the account email, or a plain two-step confirm.
+
+**Moving the dark toggle is a real trade-off.** It's currently always visible in
+the navbar, on both desktop and mobile. A dropdown tidies the bar but hides a
+control people use often, and the mobile navbar layout took two rounds of fixes
+already (see [`devlog.md`](./devlog.md) Week 3). Worth deciding deliberately
+rather than by default — one option is to keep the toggle inline and put only
+the account actions in the dropdown.
+
+**Deleting an account is irreversible and the app has no undo.** Offering the
+data export in the same menu is the honest pairing: let someone take their
+watchlist and history before they remove them.
+
+### Considered and left out for now
+
+- **Change password** — only meaningful for email/password users, so it needs a
+  branch for Google accounts that have none. Revisit if anyone asks.
+- **Compare-page default view (Cards vs. Table)** — a `localStorage` nicety, not
+  an account setting. Cheap, but it doesn't belong in this menu.
+
+---
+
+## 7. Email alerts on grade change
 
 Depends on item 2 — without scheduled re-grading there is no change to alert on.
+Also depends on item 6, which owns the per-user opt-in toggle.
 The watchlist already snapshots the grade at add-time and compares it to the
 current one (▲ Upgraded / ▼ Downgraded / — No change), so the detection logic
 largely exists.
 
 - [ ] Choose an email provider (free tier, low volume)
-- [ ] Store per-user alert preferences (opt-in, default off)
+- [ ] Add the alert opt-in to the settings menu from item 6
 - [ ] Detect upgrade/downgrade during the scheduled refresh
 - [ ] Send on change only — never on an unchanged grade
 - [ ] Include an unsubscribe link
@@ -232,7 +286,7 @@ largely exists.
 
 ---
 
-## 7. Export a graded report as PDF
+## 8. Export a graded report as PDF
 
 Last deliberately: it renders whatever the grade card contains, so it should be
 built once, after the card is final. *(This was in the original stretch list but
