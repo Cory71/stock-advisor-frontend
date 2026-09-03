@@ -11,17 +11,21 @@ they ship, then push so the history matches the progress.
 
 ## Why this order
 
-The sequence isn't arbitrary — four real dependencies drive it:
+The sequence isn't arbitrary — five real dependencies drive it:
 
 1. **Sector baselines need a fresh cache.** Baselines are medians over cached
    `Stock` docs. Stale docs poison the medians, so auto-refresh comes before
    sector context.
-2. **Email alerts need auto-refresh.** You can't alert on a grade change if
+2. **Anything computing a peer median needs trustworthy years first.** A stock
+   with silently missing years contributes a distorted figure to every median it
+   lands in, so the concept-coverage pass comes before bank grading and sector
+   context — the two steps that rank stocks against each other.
+3. **Email alerts need auto-refresh.** You can't alert on a grade change if
    grades only recompute when someone clicks.
-3. **Email alerts also need somewhere to store an opt-in.** That's the account
+4. **Email alerts also need somewhere to store an opt-in.** That's the account
    settings menu, so settings comes first — otherwise alerts would have to
    invent a settings screen anyway.
-4. **"Why this grade?" and PDF export render everything else.** Building either
+5. **"Why this grade?" and PDF export render everything else.** Building either
    before bank criteria, sector context, and charts exist means rebuilding it
    afterward. They go last.
 
@@ -166,12 +170,56 @@ re-grades every saved ticker one at a time, respecting the rate limit.
 
 ---
 
-## 3. Bank grading
+## 3. XBRL concept coverage pass
+
+Five separate times in one day, a stock's data was silently wrong or missing
+because a filing used an XBRL concept the provider didn't match:
+
+1. Duke's post-2016 revenue (`RegulatedAndUnregulatedOperatingRevenue`)
+2. Combined 10-K filings duplicating years (utilities with subsidiary registrants)
+3. NextEra's capex split across two company-prefixed segment concepts
+4. Duke's 2022 and 2023 revenue — **still unmatched**
+5. Nine stocks with year gaps, which broke the lookback window
+
+Every one was found by accident while building something else, and every one
+produced a *plausible* wrong answer rather than an error — the kind that hides
+well. This step stops guessing at the size of that problem.
+
+**Why here.** It does not block item 2: auto-refresh just re-grades stocks, and
+picks up any parsing improvement automatically. It goes before items 4 and 5
+because both compute **medians across stocks**, and a stock with missing years
+contributes a distorted figure to every median it lands in. That's the point
+where unmatched concepts stop being cosmetic and start skewing a feature's
+output.
+
+**Diagnosis first, fixes second — they're different sizes.** The report is
+bounded and read-only, maybe 15 minutes. What it turns up could be one concept
+covering six stocks or a dozen one-offs with a long tail, and that isn't
+knowable until the report exists. Don't commit to the fixes before seeing it.
+
+### Diagnosis (bounded, read-only)
+
+- [ ] For each cached stock, list the years that parse vs. the years Finnhub returns
+- [ ] Group the gaps by which concept is missing
+- [ ] Note which sectors cluster — utilities already look over-represented
+
+### Fixes (scope from what the report says)
+
+- [ ] Add the concepts that are clearly safe and consolidated
+- [ ] Document the ones that aren't, with the reason — a component line that
+      would understate a total is worse than no line at all
+- [ ] Re-run the 80-ticker regression; expect grades to move this time, and
+      record which and why
+- [ ] Duke 2022/2023 specifically — the known open case
+
+---
+
+## 4. Bank grading
 
 Full design: [sector-aware grading spec](./specs/2026-09-01-sector-aware-grading-design.md) §4.
 
 Turns `N/A` into a real grade for banks, and creates the bank peer pool that
-item 4 needs. Yield on the current cache is small (`JPM`, `BAC`), but bank
+item 5 needs. Yield on the current cache is small (`JPM`, `BAC`), but bank
 tickers are searched far more often than their share of the cache suggests.
 
 - [ ] `lib/gradingBank.js` — 5 criteria, 2 growth + 3 ratio-vs-median
@@ -186,7 +234,7 @@ tickers are searched far more often than their share of the cache suggests.
 
 ---
 
-## 4. Sector-relative context
+## 5. Sector-relative context
 
 Full design: [sector-aware grading spec](./specs/2026-09-01-sector-aware-grading-design.md) §5.
 
@@ -205,7 +253,7 @@ company. Answers the question the app currently gets wrong by implication:
 
 ---
 
-## 5. Richer "Why this grade?" explanations
+## 6. Richer "Why this grade?" explanations
 
 Extends today's N/A reasons and sector caveats into a plain-English explanation
 generated from the criteria. Sits here because it can now describe *both* grading
@@ -219,7 +267,7 @@ models and a stock's sector standing.
 
 ---
 
-## 6. Account settings menu
+## 7. Account settings menu
 
 An **Options** dropdown in the navbar gathering the controls that belong to the
 person rather than to a stock — starting with the dark-mode toggle that already
@@ -269,16 +317,16 @@ watchlist and history before they remove them.
 
 ---
 
-## 7. Email alerts on grade change
+## 8. Email alerts on grade change
 
 Depends on item 2 — without scheduled re-grading there is no change to alert on.
-Also depends on item 6, which owns the per-user opt-in toggle.
+Also depends on item 7, which owns the per-user opt-in toggle.
 The watchlist already snapshots the grade at add-time and compares it to the
 current one (▲ Upgraded / ▼ Downgraded / — No change), so the detection logic
 largely exists.
 
 - [ ] Choose an email provider (free tier, low volume)
-- [ ] Add the alert opt-in to the settings menu from item 6
+- [ ] Add the alert opt-in to the settings menu from item 7
 - [ ] Detect upgrade/downgrade during the scheduled refresh
 - [ ] Send on change only — never on an unchanged grade
 - [ ] Include an unsubscribe link
@@ -286,7 +334,7 @@ largely exists.
 
 ---
 
-## 8. Export a graded report as PDF
+## 9. Export a graded report as PDF
 
 Last deliberately: it renders whatever the grade card contains, so it should be
 built once, after the card is final. *(This was in the original stretch list but
@@ -298,27 +346,6 @@ dropped off the README's Future Improvements — worth restoring there.)*
 - [ ] Confirm dark mode doesn't leak into the printed output
 
 ---
-
-## Worth doing before the next feature — XBRL concept coverage
-
-Five separate times in one day, a stock's data was silently wrong or missing
-because a filing used an XBRL concept the provider didn't match:
-
-1. Duke's post-2016 revenue (`RegulatedAndUnregulatedOperatingRevenue`)
-2. Combined 10-K filings duplicating years (utilities with subsidiary registrants)
-3. NextEra's capex split across two company-prefixed segment concepts
-4. Duke's 2022 and 2023 revenue — still unmatched
-5. Nine stocks with year gaps, which broke the lookback window
-
-Each was found by accident while building something else, and each produced a
-*plausible* wrong answer rather than an error — the kind that hides well. A
-deliberate pass would be cheap: for every cached stock, list the years that
-parse versus the years Finnhub actually returns, and look at what the gaps have
-in common. That turns a recurring surprise into a known, bounded list.
-
-- [ ] Report parsed years vs. available years for all 80 cached stocks
-- [ ] Group the gaps by the concept that's missing
-- [ ] Add the concepts that are clearly safe; document the ones that aren't
 
 ## Known limitation — not fixable in code
 
