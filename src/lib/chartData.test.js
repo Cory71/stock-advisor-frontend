@@ -116,7 +116,7 @@ describe('missingYears', () => {
     expect(missingYears(series([2021, 2023, 2024]))).to.deep.equal([2022]);
   });
 
-  // Duke Energy: its 2022 and 2023 filings parse as having no revenue.
+  // Duke Energy: Finnhub has no annual report for 2022 or 2023.
   it('finds two skipped years', () => {
     expect(missingYears(series([2019, 2020, 2021, 2024, 2025]))).to.deep.equal([2022, 2023]);
   });

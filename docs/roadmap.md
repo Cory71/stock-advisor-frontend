@@ -132,8 +132,9 @@ needed a small backend addition first.
       year arrays (the other 13 are the foreign issuers with no filings at all)
 
 **Found while building, then fixed.** Duke's chart x-axis read 2019, 2020, 2021,
-**2024, 2025** — its 2022 and 2023 filings parse as having no revenue. Chasing
-that turned up nine cached stocks with year gaps and two real problems:
+**2024, 2025**. (At the time this was put down to unreadable 2022/2023 filings;
+item 3 later showed Finnhub simply has no report for those years.) Chasing it
+turned up nine cached stocks with year gaps and two real problems:
 
 - [x] **The chart hid its own gaps.** Bars sit evenly apart, so a missing year
       read as a normal one-year step. Coupa charts 2012, 2013, 2022, 2024, 2025
@@ -211,47 +212,61 @@ deliberately rather than slipping in here. **Decided: see item 4.**
 
 ---
 
-## 3. XBRL concept coverage pass
+## 3. XBRL concept coverage pass ✅
 
-Five separate times in one day, a stock's data was silently wrong or missing
-because a filing used an XBRL concept the provider didn't match:
+Five times in one day a stock's data turned out silently wrong or missing, each
+found by accident. This step measured the real size of that problem instead of
+guessing — and the answer **overturned the assumption behind it.**
 
-1. Duke's post-2016 revenue (`RegulatedAndUnregulatedOperatingRevenue`)
-2. Combined 10-K filings duplicating years (utilities with subsidiary registrants)
-3. NextEra's capex split across two company-prefixed segment concepts
-4. Duke's 2022 and 2023 revenue — **still unmatched**
-5. Nine stocks with year gaps, which broke the lookback window
+### Diagnosis — what the report found
 
-Every one was found by accident while building something else, and every one
-produced a *plausible* wrong answer rather than an error — the kind that hides
-well. This step stops guessing at the size of that problem.
+A read-only script compared, for every cached stock, the years Finnhub returns
+against the years that parse, and recorded the candidate concepts in any filing
+that didn't.
 
-**Why here.** It does not block item 2: auto-refresh just re-grades stocks, and
-picks up any parsing improvement automatically. It goes before items 5 and 6
-because both compute **medians across stocks**, and a stock with missing years
-contributes a distorted figure to every median it lands in. That's the point
-where unmatched concepts stop being cosmetic and start skewing a feature's
-output.
+| Cause | Stocks | Fixable in code? |
+| --- | --- | --- |
+| **Year absent from Finnhub entirely** | 13 — DUK, CCC, AMD, WMT, SHOP, MDB, HHH, VVV, DDD, NNN, UUU, SYRE, PSKY | No |
+| No filings at all (foreign listings, BRK.A) | 11 | No — known limit |
+| Revenue concept unmatched | 1 — PSKY 2025 | Not worth it: its only year |
+| Capex concept unmatched | NVDA, NEE, NNN, SYRE, UUU | Two of them |
+| Banks, no capex by nature | BAC, JPM | Item 5 |
 
-**Diagnosis first, fixes second — they're different sizes.** The report is
-bounded and read-only, maybe 15 minutes. What it turns up could be one concept
-covering six stocks or a dozen one-offs with a long tail, and that isn't
-knowable until the report exists. Don't commit to the fixes before seeing it.
+- [x] For each cached stock, list the years that parse vs. the years Finnhub returns
+- [x] Group the gaps by cause
+- [x] **Correction:** the "Duke 2022/2023 revenue still unmatched" case listed
+      here before was wrong. Finnhub has no Duke report for those years at all,
+      so no concept could fix it. The chart caption, which told users those
+      filings "couldn't be read", now says no usable annual report was available.
 
-### Diagnosis (bounded, read-only)
+**The lesson is the opposite of the premise.** Concept coverage is now in good
+shape — only one revenue gap remains inside any stock's window. The dominant
+cause of missing years is upstream: Finnhub's free tier simply lacks some
+annual reports. That can't be fixed in code, and it's why the calendar-year
+lookback window (item 1) and the chart's gap caption matter: they make the app
+honest about data it doesn't have.
 
-- [ ] For each cached stock, list the years that parse vs. the years Finnhub returns
-- [ ] Group the gaps by which concept is missing
-- [ ] Note which sectors cluster — utilities already look over-represented
+### Fixes — what was safe, and what wasn't
 
-### Fixes (scope from what the report says)
-
-- [ ] Add the concepts that are clearly safe and consolidated
-- [ ] Document the ones that aren't, with the reason — a component line that
-      would understate a total is worse than no line at all
-- [ ] Re-run the 80-ticker regression; expect grades to move this time, and
-      record which and why
-- [ ] Duke 2022/2023 specifically — the known open case
+- [x] **NVDA fiscal 2022–2023:** capex filed under NVIDIA's own
+      `nvda_PurchasesOfPropertyAndEquipmentAndIntangibleAssets`. Added. It
+      includes intangibles, so it slightly overstates capex — the cautious
+      direction for free cash flow. Cash-flow years 3 → 5.
+- [x] **NEE 2021:** that year FPL used a different concept name and Gulf Power
+      was still reported separately. Added as a second variant — company rules
+      now list variants and use the first whose required parts are all present.
+      `PublicUtility` (7.41B) equals FPL segment + Gulf Power, so it stays out,
+      same trap as before. Cash-flow years 4 → 5.
+- [x] **Documented, not added:**
+      - **NNN (REIT)** — its only candidate is *property acquisitions*: growth
+        buying, not capex. Counting it would invent a free-cash-flow figure REIT
+        analysts don't use. N/A plus the REIT note is the honest answer.
+      - **SYRE, UUU** — no capex-like concept filed at all.
+      - **PSKY** — one year in Finnhub, no revenue concept; nothing to grade.
+- [x] Grade impact: the rules are keyed to NEE and NVDA, so only those two could
+      move. Measured against live data: **neither did** (NVDA A, NEE D), both now
+      with five years of cash flow.
+- [x] 2 tests (backend 104 → **106**)
 
 ---
 

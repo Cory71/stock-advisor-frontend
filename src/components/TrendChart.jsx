@@ -113,8 +113,8 @@ function TrendChart({ rawData }) {
             <>
               {' '}
               <strong>{describeYears(gaps)}</strong>
-              {gaps.length === 1 ? ' is' : ' are'} not shown — those filings
-              couldn't be read, so the bars skip from one year to the next.
+              {gaps.length === 1 ? ' is' : ' are'} not shown — no usable annual
+              report was available, so the bars skip from one year to the next.
             </>
           )}
         </p>
