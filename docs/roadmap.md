@@ -11,7 +11,7 @@ they ship, then push so the history matches the progress.
 
 ## Why this order
 
-The sequence isn't arbitrary — five real dependencies drive it:
+The sequence isn't arbitrary — six real dependencies drive it:
 
 1. **Sector baselines need a fresh cache.** Baselines are medians over cached
    `Stock` docs. Stale docs poison the medians, so auto-refresh comes before
@@ -20,12 +20,15 @@ The sequence isn't arbitrary — five real dependencies drive it:
    with silently missing years contributes a distorted figure to every median it
    lands in, so the concept-coverage pass comes before bank grading and sector
    context — the two steps that rank stocks against each other.
-3. **Email alerts need auto-refresh.** You can't alert on a grade change if
+3. **The Finnhub throttle goes in before features that add API calls.** Bank
+   grading, sector context and alerts all increase call volume against one
+   shared limit, so the limiter comes first.
+4. **Email alerts need auto-refresh.** You can't alert on a grade change if
    grades only recompute when someone clicks.
-4. **Email alerts also need somewhere to store an opt-in.** That's the account
+5. **Email alerts also need somewhere to store an opt-in.** That's the account
    settings menu, so settings comes first — otherwise alerts would have to
    invent a settings screen anyway.
-5. **"Why this grade?" and PDF export render everything else.** Building either
+6. **"Why this grade?" and PDF export render everything else.** Building either
    before bank criteria, sector context, and charts exist means rebuilding it
    afterward. They go last.
 
@@ -167,7 +170,7 @@ straight against MongoDB instead: no endpoint, no secret header, no dependence o
 the Render server being awake.
 
 **Why a schedule, not refresh-on-login.** Considered and rejected: email alerts
-(item 8) must notice a change while you're *not* in the app; every user shares
+(item 9) must notice a change while you're *not* in the app; every user shares
 one Finnhub key (60 calls/min), so simultaneous logins would collide; and a
 10-stock watchlist is ~45 seconds of work nobody should wait through. The daily
 run also fixes the real gap behind the idea — the watchlist page shows cached
@@ -204,7 +207,7 @@ re-grades tickers back to back with no pause. Finnhub allows 60 calls/min and
 each ticker costs 4, so a watchlist of more than ~15 stocks would start getting
 rate-limited. Nobody has hit it because watchlists are small; adding the pause
 would make the button noticeably slower, so it's a trade-off worth deciding
-deliberately rather than slipping in here.
+deliberately rather than slipping in here. **Decided: see item 4.**
 
 ---
 
@@ -224,7 +227,7 @@ produced a *plausible* wrong answer rather than an error — the kind that hides
 well. This step stops guessing at the size of that problem.
 
 **Why here.** It does not block item 2: auto-refresh just re-grades stocks, and
-picks up any parsing improvement automatically. It goes before items 4 and 5
+picks up any parsing improvement automatically. It goes before items 5 and 6
 because both compute **medians across stocks**, and a stock with missing years
 contributes a distorted figure to every median it lands in. That's the point
 where unmatched concepts stop being cosmetic and start skewing a feature's
@@ -252,12 +255,52 @@ knowable until the report exists. Don't commit to the fixes before seeing it.
 
 ---
 
-## 4. Bank grading
+## 4. Throttle Finnhub calls across the whole app
+
+**The problem isn't the Refresh all button — it's that nothing paces calls.**
+Every user shares one Finnhub key and one limit of 60 calls a minute, but each
+request fires its calls as fast as it can. The watchlist's **Refresh all** is
+just the easiest way to cross the line: a watchlist over ~15 stocks errors
+partway through. Two people refreshing 8-stock watchlists at once would too,
+and so would a burst of grade-page visits.
+
+**The fix: one throttle inside `finnhubGet`.** Every Finnhub call already goes
+through that single function, so a small queue there holding calls to 60 a
+minute protects every feature at once — the button, the grade page, compare,
+and simultaneous users. Calls wait their turn instead of failing.
+
+| Watchlist | Refresh all today | With the throttle |
+| --- | --- | --- |
+| 5 stocks | ~2s | ~2s |
+| 15 stocks | ~5s | ~5s |
+| 30 stocks | errors partway through | ~2 minutes, all succeed |
+
+**Why here.** Nobody has hit it yet — watchlists are small and users are few —
+and a failure only means an error and a retry, nothing corrupted. So it waits
+for the concept pass, which affects data users see today. But it goes before
+bank grading and everything after, since those all add Finnhub calls and the
+limiter should be in place before anything can push past it. Small and bounded:
+about 30–45 minutes.
+
+- [ ] Rate-limit queue inside `finnhubGet` (60 calls/min, shared by every request)
+- [ ] **Refresh all** skips stocks graded in the last hour, so a double click or a
+      click right after the daily run costs nothing
+- [ ] Show progress ("Refreshing 12 of 30…") instead of a bare spinner, so a
+      longer wait doesn't look broken
+- [ ] Tests: calls beyond the limit wait rather than fail; the queue drains in order
+
+**Known limit:** the daily refresh (item 2) runs on GitHub's machines, not the
+server, so it doesn't share this queue. It runs at 09:00 UTC and paces itself,
+so a clash is unlikely but not impossible.
+
+---
+
+## 5. Bank grading
 
 Full design: [sector-aware grading spec](./specs/2026-09-01-sector-aware-grading-design.md) §4.
 
 Turns `N/A` into a real grade for banks, and creates the bank peer pool that
-item 5 needs. Yield on the current cache is small (`JPM`, `BAC`), but bank
+item 6 needs. Yield on the current cache is small (`JPM`, `BAC`), but bank
 tickers are searched far more often than their share of the cache suggests.
 
 - [ ] `lib/gradingBank.js` — 5 criteria, 2 growth + 3 ratio-vs-median
@@ -272,7 +315,7 @@ tickers are searched far more often than their share of the cache suggests.
 
 ---
 
-## 5. Sector-relative context
+## 6. Sector-relative context
 
 Full design: [sector-aware grading spec](./specs/2026-09-01-sector-aware-grading-design.md) §5.
 
@@ -291,7 +334,7 @@ company. Answers the question the app currently gets wrong by implication:
 
 ---
 
-## 6. Richer "Why this grade?" explanations
+## 7. Richer "Why this grade?" explanations
 
 Extends today's N/A reasons and sector caveats into a plain-English explanation
 generated from the criteria. Sits here because it can now describe *both* grading
@@ -305,7 +348,7 @@ models and a stock's sector standing.
 
 ---
 
-## 7. Account settings menu
+## 8. Account settings menu
 
 An **Options** dropdown in the navbar gathering the controls that belong to the
 person rather than to a stock — starting with the dark-mode toggle that already
@@ -355,16 +398,16 @@ watchlist and history before they remove them.
 
 ---
 
-## 8. Email alerts on grade change
+## 9. Email alerts on grade change
 
 Depends on item 2 — without scheduled re-grading there is no change to alert on.
-Also depends on item 7, which owns the per-user opt-in toggle.
+Also depends on item 8, which owns the per-user opt-in toggle.
 The watchlist already snapshots the grade at add-time and compares it to the
 current one (▲ Upgraded / ▼ Downgraded / — No change), so the detection logic
 largely exists.
 
 - [ ] Choose an email provider (free tier, low volume)
-- [ ] Add the alert opt-in to the settings menu from item 7
+- [ ] Add the alert opt-in to the settings menu from item 8
 - [ ] Detect upgrade/downgrade during the scheduled refresh
 - [ ] Send on change only — never on an unchanged grade
 - [ ] Include an unsubscribe link
@@ -372,7 +415,7 @@ largely exists.
 
 ---
 
-## 9. Export a graded report as PDF
+## 10. Export a graded report as PDF
 
 Last deliberately: it renders whatever the grade card contains, so it should be
 built once, after the card is final. *(This was in the original stretch list but
