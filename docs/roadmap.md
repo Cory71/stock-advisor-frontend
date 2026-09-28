@@ -158,15 +158,48 @@ before it surfaces a sixth time — see the note at the end of this file.
 ## 2. Automatic watchlist refresh
 
 Stops the cache rot that item 0 cleans up by hand, and unblocks email alerts.
-The backend work is largely done — `POST /api/watchlist/refresh` already
-re-grades every saved ticker one at a time, respecting the rate limit.
 
-- [ ] Decide the schedule (daily is plenty — filings update quarterly)
-- [ ] Create a Render cron job hitting the refresh endpoint
-- [ ] Add auth for the cron caller (a shared secret header, not a user JWT)
-- [ ] Handle partial failure — one bad ticker must not abort the run
-- [ ] Log outcomes so a silent failure is visible
-- [ ] Confirm the free-tier spin-down doesn't drop the job
+**The original plan was wrong for this codebase.** It assumed a cron job calling
+`POST /api/watchlist/refresh` with a shared secret. That endpoint is scoped to
+one user's watchlist, but the `Stock` cache is shared per ticker — refreshing
+the *cache* once updates every user at the same time. So the job runs a script
+straight against MongoDB instead: no endpoint, no secret header, no dependence on
+the Render server being awake.
+
+**Why a schedule, not refresh-on-login.** Considered and rejected: email alerts
+(item 8) must notice a change while you're *not* in the app; every user shares
+one Finnhub key (60 calls/min), so simultaneous logins would collide; and a
+10-stock watchlist is ~45 seconds of work nobody should wait through. The daily
+run also fixes the real gap behind the idea — the watchlist page shows cached
+grades as-is, while the grade page already refreshes anything over 24 hours old
+on view.
+
+- [x] `lib/refreshCache.js` — re-grades stocks older than 20 hours, 4.5s apart
+      to stay under Finnhub's limit; skips anything a user refreshed recently
+- [x] One bad ticker never stops the run — failures are recorded and listed
+- [x] `scripts/refresh-cache.js` (`npm run refresh`) prints a summary of grade
+      changes and failures; exits non-zero only if it can't connect or *every*
+      ticker fails, so an outage or bad key gets flagged but one delisted
+      symbol doesn't
+- [x] Schedule: **GitHub Actions**, daily at 09:00 UTC, plus a manual
+      "Run workflow" button. Chosen over a Render cron job because it's free,
+      logs every run, and emails on failure. Runs can't overlap.
+- [x] 6 tests (backend 97 → **103**)
+- [x] Real run against the live cache: 75 stale, **74 refreshed, 0 grade
+      changes**, 1 failure (`IEC.AQ`, a foreign listing Finnhub refuses) —
+      recorded without stopping the run, exit code 0 as intended. 353 seconds.
+- [ ] Add `MONGO_URI` and `FINNHUB_API_KEY` as repository secrets on GitHub
+- [ ] Trigger the first run by hand and confirm it succeeds
+
+**Known caveat:** GitHub pauses scheduled workflows after 60 days with no repo
+activity. It emails a warning first, and one click re-enables it.
+
+**Not fixed, noticed along the way:** the watchlist's manual **Refresh all**
+re-grades tickers back to back with no pause. Finnhub allows 60 calls/min and
+each ticker costs 4, so a watchlist of more than ~15 stocks would start getting
+rate-limited. Nobody has hit it because watchlists are small; adding the pause
+would make the button noticeably slower, so it's a trade-off worth deciding
+deliberately rather than slipping in here.
 
 ---
 
