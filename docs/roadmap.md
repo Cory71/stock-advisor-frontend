@@ -155,7 +155,7 @@ before it surfaces a sixth time — see the note at the end of this file.
 
 ---
 
-## 2. Automatic watchlist refresh
+## 2. Automatic watchlist refresh ✅
 
 Stops the cache rot that item 0 cleans up by hand, and unblocks email alerts.
 
@@ -188,8 +188,13 @@ on view.
 - [x] Real run against the live cache: 75 stale, **74 refreshed, 0 grade
       changes**, 1 failure (`IEC.AQ`, a foreign listing Finnhub refuses) —
       recorded without stopping the run, exit code 0 as intended. 353 seconds.
-- [ ] Add `MONGO_URI` and `FINNHUB_API_KEY` as repository secrets on GitHub
-- [ ] Trigger the first run by hand and confirm it succeeds
+- [x] Added `MONGO_URI` and `FINNHUB_API_KEY` as repository secrets
+- [x] First CI run **failed — and exposed a flaw in the failure rule.** The only
+      stale stock was `IEC.AQ`, a foreign listing Finnhub refuses with a 403, so
+      one attempt with zero successes read as an outage. A 403 can never
+      succeed on retry, so it's now reported as *skipped*; the run is flagged
+      only when something that could have worked didn't. Re-run passed (exit 0).
+      Test suite 103 → **104**.
 
 **Known caveat:** GitHub pauses scheduled workflows after 60 days with no repo
 activity. It emails a warning first, and one click re-enables it.
