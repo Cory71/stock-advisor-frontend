@@ -333,15 +333,36 @@ Turns `N/A` into a real grade for banks, and creates the bank peer pool that
 item 6 needs. Yield on the current cache is small (`JPM`, `BAC`), but bank
 tickers are searched far more often than their share of the cache suggests.
 
-- [ ] `lib/gradingBank.js` — 5 criteria, 2 growth + 3 ratio-vs-median
-- [ ] `lib/selectGrader.js` — route on `industry === 'Banking'` only
-- [ ] Add `BANK_*` concept lists to the provider (do **not** touch `REVENUE_CONCEPTS`)
-- [ ] Derived revenue fallback: net interest income + noninterest income
-- [ ] N/A policy: 2+ null criteria → `N/A`, not a low grade
-- [ ] Seed ~25–30 US banks to establish real medians
-- [ ] Recompute the provisional medians from the seeded pool
-- [ ] **Regression test: all 59 currently-graded tickers keep identical grades**
-- [ ] Label the model on the grade card and compare page
+**Spec revised 2026-09-28, before any code** — four parts of the original plan
+were overtaken by items 0–4. The biggest: the provisional medians came from a
+pool that included GS, MS, SCHW and STT, which Finnhub doesn't label `Banking`,
+so they'd have set the bar for banks they're never compared with. The spec's
+header lists all four changes.
+
+**First thing to confirm (spec §4.4):** a strict "above the median" rule turns
+into coin flips — four banks sit within 0.02pp of the 1.00% ROA median. The
+spec recommends a **5% tolerance band** ("not clearly below the typical bank").
+Default is the band unless overridden.
+
+Build order — the medians file must exist before the grader ships:
+
+- [ ] `parseBankReports` in the provider — its own parser (USB and TFC have no
+      revenue concept, so `parseAnnualReports` would drop every year); keeps one
+      report per year by largest total assets; applies `withinLookback`
+- [ ] `BANK_*` concept lists and the net-interest + noninterest revenue fallback
+      — `REVENUE_CONCEPTS`, `OCF_CONCEPTS`, `CAPEX_CONCEPTS` untouched
+- [ ] Seed the 14 `Banking`-labelled banks once (JPM BAC WFC C USB PNC TFC FITB
+      KEY RF MTB HBAN CFG ZION) — the daily refresh keeps them fresh after that
+- [ ] `scripts/compute-bank-medians.js` → committed `lib/bankMedians.json`;
+      refuses fewer than 8 banks; prints old → new and which grades would move
+- [ ] `lib/gradingBank.js` — pure, medians passed in; 2 growth + 3 ratio criteria
+      with the §4.4 band; 2+ null criteria → `N/A`
+- [ ] `lib/selectGrader.js` — `industry === 'Banking'` only — and route **every**
+      grading path through it: grade page, watchlist, compare, daily refresh
+- [ ] `Stock.model` field (`'general' | 'bank'`, default `'general'`)
+- [ ] Frontend: label the model on the grade card and compare page; bank chart
+      shows revenue + net income, without the capital-spending caption
+- [ ] **Regression test: every currently-graded ticker keeps an identical grade**
 
 ---
 

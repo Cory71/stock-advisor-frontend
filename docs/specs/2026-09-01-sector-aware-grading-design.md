@@ -1,7 +1,31 @@
 # Sector-Aware Grading — Design
 
-**Date:** 2026-09-01
-**Status:** Approved design, not yet implemented
+**Date:** 2026-09-01 · **Revised:** 2026-09-28 (§4 rewritten before implementation)
+**Status:** Feature 1 (bank grading) ready to build — roadmap item 5. Feature 2 — roadmap item 6.
+
+> **What the 2026-09-28 revision changed, and why.** The criteria and N/A rule
+> held up, but four things built after this spec was written made parts of §4
+> wrong:
+>
+> 1. **The median pool didn't match the stocks being graded.** The provisional
+>    medians came from 16 banks including GS, MS, SCHW, STT and BK — none of which
+>    Finnhub labels `Banking`, so the router would never bank-grade them. The pool
+>    is now the `Banking`-labelled stocks only (14), and the medians were
+>    recomputed from them.
+> 2. **The spec never said where medians live.** With the daily refresh (roadmap
+>    item 2) re-grading every stock each morning, live-computed medians would let a
+>    bank's grade flip because *other* banks moved — and once email alerts exist,
+>    that's false "your grade changed" emails. Medians now live in a committed
+>    file, updated deliberately.
+> 3. **Bank figures can't reuse `parseAnnualReports`,** which drops any year
+>    without a matching revenue concept — USB and TFC have none. Banks get their
+>    own parser, reusing the year de-duplication and calendar-year window built
+>    since.
+> 4. **The trend chart (built after this spec) would mislead for banks** — every
+>    cash-flow bar missing, with a caption implying broken data. Bank-graded
+>    stocks chart revenue and net income instead.
+>
+> It also surfaced one thing the original argument got wrong — see §4.4.
 **Implementation repo:** `stock-advisor-backend` (this doc lives with the other planning docs in the frontend repo)
 
 ---
@@ -99,18 +123,27 @@ compare against the **peer median**, derived from filings.
 ## 3. Architecture
 
 ```text
-providers/finnhubProvider.js   MODIFIED  additive bank fields only
-lib/grading.js                 UNCHANGED general model, 30 tests stay green
-lib/gradingBank.js             NEW       pure: bank data -> grade
-lib/selectGrader.js            NEW       pure: industry -> grader
-lib/sectorContext.js           NEW       pure: (metrics, baseline) -> context
-models/SectorBaseline.js       NEW       per-industry medians
-routes/grade.js                MODIFIED  composes; holds no grading logic
+providers/finnhubProvider.js    MODIFIED  bank parser + additive bank fields
+lib/grading.js                  UNCHANGED general model
+lib/gradingBank.js              NEW       pure: (bank data, medians) -> grade
+lib/selectGrader.js             NEW       pure: industry -> grader
+lib/bankMedians.json            NEW       committed medians + the pool they came from
+scripts/compute-bank-medians.js NEW       recomputes the file from the cache
+models/Stock.js                 MODIFIED  adds `model: 'general' | 'bank'`
+routes/grade.js, watchlist.js,  MODIFIED  compose via selectGrader; no grading logic
+  compare.js, lib/refreshCache
+lib/sectorContext.js            NEW       (Feature 2) pure: (metrics, baseline) -> context
+models/SectorBaseline.js        NEW       (Feature 2) per-industry medians
 ```
 
 Every new unit is a pure function with its own tests, matching how `grading.js`
-is already built. The only impure additions are the baseline collection and the
-job that refreshes it.
+is already built. `gradingBank` receives the medians as an argument rather than
+reading them itself, so it stays pure and tests can pass any medians they like.
+
+**Every place that grades must go through `selectGrader`** — the grade route, the
+watchlist, compare, and the daily refresh (`lib/refreshCache.js`). If one path
+keeps calling `gradeStock` directly, a bank gets a bank grade on its own page and
+N/A on the watchlist.
 
 ---
 
@@ -126,8 +159,8 @@ const BANK_INDUSTRIES = ['Banking'];
 Routing is by **`industry` label from an explicit allowlist only**. It is never
 inferred from data shape.
 
-**This constraint is load-bearing.** The tempting broader rules both cause
-regressions in stocks that grade correctly today:
+**This constraint is load-bearing.** Broader rules regress stocks that grade
+correctly today:
 
 | Ticker | Industry | Grade today | Under a broad rule |
 | --- | --- | --- | --- |
@@ -137,122 +170,180 @@ regressions in stocks that grade correctly today:
 | NNN | Real Estate | N/A | wrongly bank-graded |
 | SYRE | Biotechnology | N/A | wrongly bank-graded |
 
-Visa and Mastercard are payment networks, not banks — real revenue, real FCF,
-grading correctly. A no-FCF-shaped rule would also sweep in a REIT and a biotech.
+Visa and Mastercard are payment networks, not banks — real revenue, real FCF.
+Investment and custody banks (GS, MS, SCHW, STT) are labelled `Financial
+Services` too and stay on the general model (currently N/A). That's accepted:
+their economics differ enough (Goldman's net interest margin is 0.7%) that
+grading them against deposit banks would be its own mistake.
 
-`Banking` currently contains `JPM`, `BAC`, `RY`, `TD` — all four already `N/A`,
-so **zero currently-graded stocks change**.
+In today's cache `Banking` holds `JPM`, `BAC`, `RY`, `TD` — all N/A, so **no
+currently-graded stock changes**. `RY` and `TD` are Canadian with no filings at
+this tier and stay N/A. Seeding (§4.7) adds 12 more.
 
-Of those four, only `JPM` and `BAC` actually become gradeable. `RY` and `TD` are
-Canadian and return no filings at this tier (§2.2), so they stay `N/A` regardless
-of the model. The bank grader's real yield on the current cache is **2 stocks**;
-its wider value is that bank tickers are among the most commonly searched, so the
-gap is disproportionately visible relative to its share of the cache.
+Widening `BANK_INDUSTRIES` later is a deliberate act that must come with the
+regression test in §7.
 
-Adding an industry to `BANK_INDUSTRIES` later is a deliberate act that must be
-accompanied by the regression test in §7.
+### 4.2 Provider — a separate bank parser
 
-### 4.2 Provider changes (hard constraint)
+**Bank figures cannot piggyback on `parseAnnualReports`.** That parser drops any
+year without a matching revenue concept, and USB and TFC report none — their
+bank arrays would come back empty. Add `parseBankReports(reports)` alongside it.
 
-Bank concepts go in **new, separate** `BANK_*` arrays.
+It must reuse the two safeguards built after this spec:
 
-**`REVENUE_CONCEPTS` must not be modified.** Revenue is resolved with
-`findLargestValue`, which takes the largest value across all matching concepts —
-adding an entry there could silently change a non-bank's revenue and shift its
-grade. Same reasoning applies to `OCF_CONCEPTS` and `CAPEX_CONCEPTS`.
+- **One report per year.** Combined filings return a report per registrant (item
+  0). Keep the report with the **largest total assets** — the parent's
+  consolidated balance sheet — and take every other bank figure from that same
+  report.
+- **Calendar-year window.** Pass the result through `withinLookback` (item 1), so
+  a bank with a missing year isn't judged over a longer span than its peers.
 
-New fields are added to the returned object; existing fields and their resolution
-logic are untouched.
+**`REVENUE_CONCEPTS`, `OCF_CONCEPTS` and `CAPEX_CONCEPTS` are not touched.** Bank
+concepts live in their own arrays, so no non-bank's figures can move.
 
 ```js
 const BANK_NET_INCOME_CONCEPTS = [
   'us-gaap_NetIncomeLoss',
   'NetIncomeLoss',
   'us-gaap_NetIncomeLossAvailableToCommonStockholdersBasic',
-  // PNC and similar file under a company prefix, e.g.
-  // pnc_NetIncomeLossAvailableToCommonStockholders — matched by suffix fallback.
 ];
+// Fallback when none match: a company-prefixed
+// *_NetIncomeLossAvailableToCommonStockholders concept (PNC files this way).
 
-const BANK_EQUITY_CONCEPTS = ['us-gaap_StockholdersEquity', 'StockholdersEquity'];
-const BANK_ASSETS_CONCEPTS = ['us-gaap_Assets', 'Assets'];
-const BANK_NII_CONCEPTS    = ['us-gaap_InterestIncomeExpenseNet', 'InterestIncomeExpenseNet'];
-const BANK_NONINT_INCOME   = ['us-gaap_NoninterestIncome', 'NoninterestIncome'];
-const BANK_NONINT_EXPENSE  = ['us-gaap_NoninterestExpense', 'NoninterestExpense'];
-const BANK_REVENUE_CONCEPTS = [
-  'us-gaap_RevenuesNetOfInterestExpense',
-  'us-gaap_Revenues',
-  'Revenues',
-];
+const BANK_EQUITY_CONCEPTS  = ['us-gaap_StockholdersEquity', 'StockholdersEquity'];
+const BANK_ASSETS_CONCEPTS  = ['us-gaap_Assets', 'Assets'];
+const BANK_NII_CONCEPTS     = ['us-gaap_InterestIncomeExpenseNet', 'InterestIncomeExpenseNet'];
+const BANK_NONINT_INCOME    = ['us-gaap_NoninterestIncome', 'NoninterestIncome'];
+const BANK_NONINT_EXPENSE   = ['us-gaap_NoninterestExpense', 'NoninterestExpense'];
+const BANK_REVENUE_CONCEPTS = ['us-gaap_RevenuesNetOfInterestExpense', 'us-gaap_Revenues', 'Revenues'];
 ```
 
-**Bank revenue fallback.** When no consolidated revenue tag resolves, compute
-`revenue = netInterestIncome + noninterestIncome`. This is the standard banking
-definition and closed nearly every gap in testing (`USB`, `TFC`, `COF`, `FITB`,
-`KEY`, `RF`, `BK` all resolved).
+**Bank revenue fallback:** when no revenue concept matches, `revenue = net
+interest income + noninterest income` — the standard banking definition. All 14
+pool banks resolve every figure with these lists (checked 2026-09-28).
 
-New fields on the provider's return value, each an array oldest → newest to match
-the existing `annualRevenues` shape:
+New fields on the provider's return value, additive, oldest → newest, with their
+own year list so the chart can join on year:
 
 ```text
-annualNetIncome[]      annualEquity[]      annualAssets[]
-annualBankRevenue[]    annualNoninterestExpense[]
+annualBankYears[]   annualNetIncome[]   annualEquity[]   annualAssets[]
+annualBankRevenue[] annualNoninterestExpense[]
 ```
 
 ### 4.3 Criteria
 
-Five criteria, mirroring the existing model's shape so the frontend needs no
-changes. Split by type, per §2.5:
+Five, mirroring the general model's shape so the grade card needs no layout
+change.
 
-**Growth criteria — absolute, no threshold:**
+**Growth — absolute, no threshold:**
 
-| # | Criterion | Test |
+| # | Criterion | Passes when |
 | --- | --- | --- |
-| 1 | Book value growth | `latest equity > earliest equity` |
-| 2 | Net income growth | `latest net income > earliest net income` |
+| 1 | Book value growth | latest equity > earliest equity (in the window) |
+| 2 | Net income growth | latest net income > earliest net income |
 
-**Ratio criteria — compared against the bank peer median:**
+**Ratios — against the bank median (§4.5):**
 
-| # | Criterion | Test | Provisional median |
+| # | Criterion | Formula | Median (14 banks) |
 | --- | --- | --- | --- |
-| 3 | Return on equity | `ROE > median` | 11.6% |
-| 4 | Return on assets | `ROA > median` | 1.04% |
-| 5 | Efficiency ratio | `efficiency < median` (lower is better) | 60.8% |
+| 3 | Return on equity | net income ÷ equity | 10.5% |
+| 4 | Return on assets | net income ÷ total assets | 1.00% |
+| 5 | Efficiency ratio *(lower is better)* | noninterest expense ÷ bank revenue | 60.7% |
+
+Ratios use the latest year. Scoring reuses `GRADE_BY_SCORE`: 5=A, 4=B, 3=C,
+2=D, 0–1=F.
+
+### 4.4 Decision to confirm before coding — coin flips at the median
+
+The original argument (§2.5) was that medians escape the "knife-edge" of fixed
+thresholds, where WFC and KEY failed ROA by 0.01pp. **That's only half true.**
+Medians fix *where the line comes from*; they don't fix *coin flips near it*,
+because a median sits in the middle of the cluster by definition. With the
+Banking-only pool, four banks sit within 0.02pp of the 1.00% ROA median:
 
 ```text
-ROE        = netIncome / stockholdersEquity
-ROA        = netIncome / totalAssets
-Efficiency = noninterestExpense / bankRevenue
+HBAN 0.98   WFC 0.99   KEY 0.99   ZION 1.01
 ```
 
-The provisional medians are the sample medians of the 16 banks tested on
-2026-09-01. They are **seed values only** — replaced by medians computed from the
-seeded bank pool (§4.5) as soon as one exists, and refreshed with it thereafter.
+A strict `> median` rule passes ZION and fails the other three, on differences
+that are noise.
 
-Scoring reuses the existing `GRADE_BY_SCORE` map: 5=A, 4=B, 3=C, 2=D, 0–1=F.
+**Recommended: a 5% tolerance band.** A ratio passes unless it's *clearly* worse
+than the typical bank — ROE and ROA at least 95% of the median, efficiency at
+most 105% of it. The criterion then reads "not clearly below the typical bank",
+which is what a beginner would expect it to mean.
 
-### 4.4 N/A policy
+| Criterion | Strict `> median` passes | With 5% band passes | Still fails with band |
+| --- | --- | --- | --- |
+| ROE (≥ 9.98%) | 7 of 14 | 8 of 14 | C, CFG, TFC, KEY, HBAN, MTB |
+| ROA (≥ 0.95%) | 7 of 14 | 10 of 14 | C, CFG, BAC, TFC |
+| Efficiency (≤ 63.7%) | 7 of 14 | 11 of 14 | WFC, C, CFG |
 
-The general model treats a null criterion as "no". That is safe there because
-nulls are rare; it is **not** safe here, where missing concepts caused the
-attempt-1 failures in §2.5.
+The band is itself a chosen number, but it's a *tolerance relative to the peer
+median*, not an absolute bar — it doesn't reintroduce the original problem. The
+honest cost: a few more banks pass, so bank grades skew slightly higher than
+under a strict median. **Default if not overridden: 5% band.**
 
-**Rule: 2 or more null criteria → return `N/A`** with a reason, rather than a
-low grade. Validated — `STT` (2 nulls) correctly returns N/A instead of a
-fabricated F.
+### 4.5 Where the medians live — a committed file
 
-A single null still counts as "no", matching existing behaviour.
+```json
+{
+  "computedAt": "2026-09-28",
+  "pool": ["BAC", "C", "CFG", "FITB", "HBAN", "JPM", "KEY", "MTB", "PNC", "RF", "TFC", "USB", "WFC", "ZION"],
+  "roe": 0.105,
+  "roa": 0.0100,
+  "efficiency": 0.607
+}
+```
 
-The existing freshness guard (`STALE_AFTER_MONTHS = 24`) applies unchanged.
+Stored as `lib/bankMedians.json` in the backend.
 
-### 4.5 Seeding the bank pool
+**Why a file, not a live calculation.** The daily refresh re-grades every stock
+each morning. If medians were recomputed on the fly, a bank's grade could change
+because *other* banks moved, with nothing in its own filings changing — and once
+email alerts ship (roadmap item 9), that becomes a stream of false "your grade
+changed" emails. A file means:
 
-The medians need a real pool. Extend `scripts/seed-popular.js` with ~25–30 US
-banks across tiers — money-center (`JPM`, `BAC`, `WFC`, `C`), investment
-(`GS`, `MS`), custody (`BK`, `STT`), and regional (`USB`, `PNC`, `TFC`, `COF`,
-`SCHW`, `FITB`, `KEY`, `RF`, …).
+- grades only move for a bank's own reasons, or on a deliberate median update;
+- every median change is a reviewable git diff, with the pool it came from;
+- `gradingBank` stays pure — the caller passes the medians in.
 
-At the existing 5s spacing this is a ~2.5 minute run, well inside the 60 calls/min
-free-tier limit. Re-run when filings update, roughly quarterly.
+`scripts/compute-bank-medians.js` recomputes the file from cached `Banking`
+stocks and prints old → new, plus which banks' grades would change. A human
+reviews that and commits it. Roughly quarterly, after annual reports land.
+
+The script refuses to write a file from fewer than 8 banks, so a half-seeded
+cache can't produce a median from three data points.
+
+### 4.6 N/A policy
+
+**2 or more null criteria → `N/A`** with a reason, not a low grade. Validated
+earlier: `STT`-shaped input (2 nulls) returns N/A instead of a fabricated F. A
+single null counts as "no", matching the general model. The freshness guard
+(`STALE_AFTER_MONTHS = 24`) applies unchanged.
+
+### 4.7 Seeding the bank pool
+
+Seed once, using the existing `scripts/seed-popular.js` pattern:
+
+```text
+JPM BAC WFC C USB PNC TFC FITB KEY RF MTB HBAN CFG ZION
+```
+
+That's the full `Banking`-labelled pool. The throttle (item 4) means this can't
+trip the rate limit, and **the daily refresh (item 2) keeps the seeded banks
+fresh from then on** — seeding is a one-off. The only recurring task is
+recomputing `bankMedians.json` (§4.5).
+
+Order: seed → compute medians → review → commit the file → deploy the grader.
+The grader needs the file to exist, so the file comes first.
+
+### 4.8 Storing which model graded a stock
+
+`Stock` gains `model: 'general' | 'bank'` (default `'general'`, so existing docs
+need no migration). The frontend reads it to label the grade card, compare page
+and chart. Without it, the UI would have to re-derive the model from the industry
+label and could drift from the backend's routing.
 
 ---
 
@@ -339,21 +430,38 @@ Same letter, different meaning, so the difference is shown rather than hidden.
 label appears on each card. Without it the page would silently invite an invalid
 comparison.
 
+**Trend chart (bank model):** plot **revenue and net income** instead of revenue
+and free cash flow, using `annualBankYears`. Banks have no capital-expenditure
+line by nature, so the general chart would show every cash-flow bar missing,
+with a caption saying the filings "didn't report capital spending we could read"
+— which reads as broken data. The caption for banks drops that sentence.
+
 ---
 
 ## 7. Testing
 
 Mirrors the existing suite (Mocha + Chai for pure functions, Supertest for routes).
 
-**Regression test — the safety guarantee.** Run all 59 currently-graded tickers
+**Regression test — the safety guarantee.** Run every currently-graded ticker (61 at the last count)
 through the new router and assert **byte-identical grades and criteria**. This is
 what actually enforces §4.1 and §4.2; without it the guarantee rests on review
 alone. It must fail loudly if anyone widens `BANK_INDUSTRIES` or edits a shared
 concept list.
 
 **`lib/gradingBank.js`** — each of the 5 criteria; the score→grade mapping; the
-2-null N/A rule; the freshness guard; the NII + noninterest-income revenue
-fallback; `STT`-shaped input returning N/A rather than F.
+2-null N/A rule; the freshness guard; `STT`-shaped input returning N/A rather
+than F; the tolerance band at, just inside, and just outside 5% (§4.4); medians
+passed in, never read from disk.
+
+**`parseBankReports`** — the derived-revenue fallback; the PNC company-prefix net
+income; one report per year keeping the largest-assets report; the calendar-year
+window.
+
+**`compute-bank-medians`** — the median of an odd and an even pool; refuses fewer
+than 8 banks; only `Banking`-labelled stocks count.
+
+**Every grading path** — the grade route, watchlist, compare and daily refresh
+all produce the same bank grade for the same bank.
 
 **`lib/selectGrader.js`** — `Banking` routes to the bank grader; `Financial
 Services`, `Real Estate`, `Biotechnology`, and an absent industry all route to
@@ -362,9 +470,6 @@ the general grader.
 **`lib/sectorContext.js`** — above / at / below median; suppression below 8 peers;
 null-safety when a metric is missing.
 
-**Provider** — bank concept resolution including the PNC company-prefix fallback
-and the derived-revenue path.
-
 **Route** — a bank ticker returns a bank-model grade; a non-bank is unaffected;
 sector context appears only when a baseline qualifies.
 
@@ -372,7 +477,7 @@ sector context appears only when a baseline qualifies.
 
 ## 8. Sequencing
 
-1. **Free win first** — re-grade `DUK`, `NEE`, `B` to clear the stale cache. No code.
+1. ~~**Free win first** — re-grade `DUK`, `NEE`, `B`.~~ Done (roadmap item 0) — and not a free win: it surfaced three provider bugs.
 2. **Feature 1** — bank grading. Ships value on its own and creates the bank peer
    pool that Feature 2 needs. Until banks grade, `Banking` has no gradeable members
    to build a baseline from.
@@ -391,9 +496,12 @@ Each stage is independently shippable and independently revertible.
   construction roughly half the pool passes each ratio criterion, so A's are
   rarer than under absolute thresholds. Accepted: the alternative is hand-picked
   constants that landed on the cluster twice (§2.5).
-- **Medians shift as the pool grows.** A bank's grade can change without its
-  filings changing. Mitigated by recomputing only on scheduled refreshes, never
-  per request, and by storing `computedAt` on the baseline.
+- **Medians go stale between deliberate updates.** Because they live in a
+  committed file (§4.5), they don't track the pool day to day. Accepted: a
+  quarterly update matches how often bank filings change, and the alternative
+  lets grades flip for reasons unrelated to the bank itself.
+- **Investment and custody banks stay N/A.** GS, MS, SCHW and STT aren't labelled
+  `Banking`. Accepted rather than widening the router — see §4.1.
 - **~16% of cached stocks stay N/A.** A Finnhub free-tier limit (§2.2), out of
   scope, and honestly reported rather than papered over.
 
