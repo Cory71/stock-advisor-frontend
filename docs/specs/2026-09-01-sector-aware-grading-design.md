@@ -309,8 +309,15 @@ changed" emails. A file means:
 - `gradingBank` stays pure — the caller passes the medians in.
 
 `scripts/compute-bank-medians.js` recomputes the file from cached `Banking`
-stocks and prints old → new, plus which banks' grades would change. A human
-reviews that and commits it. Roughly quarterly, after annual reports land.
+stocks and prints old → new, plus which banks' grades would change.
+
+**Updated automatically once a year** (decided 2026-09-29, replacing a manual
+quarterly review): a GitHub Actions job runs it every 15 April, after banks'
+annual reports, and commits the file if it changed. Yearly because the medians
+come from annual reports and can't meaningfully change more often. The review
+step is replaced by a guard: if any median moves more than 25%, the run fails
+without committing and GitHub emails the owner — a jump that size means bad
+data, not a new year.
 
 The script refuses to write a file from fewer than 8 banks, so a half-seeded
 cache can't produce a median from three data points.

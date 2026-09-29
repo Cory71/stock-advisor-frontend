@@ -387,9 +387,14 @@ the five-year window starts there; that's accurate, not a bug.
 - [x] Checked in the browser: JPM's page and an AAPL-vs-JPM compare table
 - [x] Tests: backend 115 → **145**, frontend 71 → **83**
 
-**Recurring task:** re-run `npm run bank-medians` roughly quarterly, after banks'
-annual reports land. It prints old → new medians and which grades would move;
-review, then commit `lib/bankMedians.json`.
+- [x] **No recurring task.** The medians update themselves once a year
+      (`.github/workflows/bank-medians.yml`, 15 April, after annual reports).
+      Unchanged medians → no commit. A normal change → committed automatically
+      by GitHub's bot, with old → new values in the message; Render deploys it
+      and the next daily refresh re-grades the banks. **Any median moving more
+      than 25% → the run fails without committing** — that size of jump means
+      bad data — and GitHub emails you. Yearly, not quarterly: the medians come
+      from annual reports, so they can only really change once a year.
 
 ---
 
