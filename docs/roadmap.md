@@ -346,6 +346,19 @@ Default is the band unless overridden.
 
 Build order — the medians file must exist before the grader ships:
 
+- [ ] **Step 1 — one shared "fetch, grade, save" function, before any bank code.**
+      Five places currently repeat the same three steps: the grade page,
+      watchlist, compare, the daily refresh and the seed script. Merge them into
+      `lib/regradeStock.js`, so the choice of grading model later lives in one
+      line of one file instead of five places to remember. Do it as a pure
+      refactor with **no behaviour change**: the existing tests and a full
+      regression run must show every grade identical. Done first so that, if a
+      grade moves during item 5, it can only be the bank model and not the
+      refactor. If merging turns up a real difference between the copies (e.g.
+      the daily refresh doesn't save `ticker`), stop and decide it explicitly
+      rather than picking one quietly.
+- [ ] Safety-net test: fails if any file other than `lib/regradeStock.js` calls
+      `gradeStock` directly, so a sixth copy can't creep back in later
 - [ ] `parseBankReports` in the provider — its own parser (USB and TFC have no
       revenue concept, so `parseAnnualReports` would drop every year); keeps one
       report per year by largest total assets; applies `withinLookback`
