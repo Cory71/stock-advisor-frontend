@@ -9,6 +9,7 @@ import { apiFetch } from '../lib/apiFetch';
 import { gradeColor, gradeChange, formatPrice } from '../lib/grade';
 import { useAutoDismiss } from '../lib/useAutoDismiss';
 import { usePageTitle } from '../lib/usePageTitle';
+import { refreshLabel, refreshFailureMessage } from '../lib/refreshProgress';
 
 // Small reusable grade pill — uses the same colour scheme as the Grade Detail page.
 function GradeBadge({ grade }) {
@@ -28,8 +29,10 @@ function Watchlist() {
   const [submitting, setSubmitting] = useState(false);
   const [addInfo, setAddInfo]       = useState(null);
 
-  // "Refresh all" state — true while re-grading, plus when it last finished.
+  // "Refresh all" state — true while re-grading, how far through it is, and
+  // when it last finished.
   const [refreshing, setRefreshing]   = useState(false);
+  const [progress, setProgress]       = useState(null); // { done, total } while running
   const [refreshedAt, setRefreshedAt] = useState(null);
 
   // Banner auto-dismisses after 5s.
@@ -77,20 +80,36 @@ function Watchlist() {
     }
   }
 
-  // Re-grade every ticker with fresh data (the backend bypasses its cache),
-  // then swap in the updated rows and stamp the time. One row failing doesn't
-  // stop the rest — the backend skips it.
+  // Re-grade each row one at a time so the button can show "Refreshing 12 of
+  // 30…", then reload the list once at the end. The backend skips rows graded
+  // in the last hour and paces its Finnhub calls, so a long list is slower but
+  // never fails part-way. One row failing doesn't stop the rest.
   async function handleRefreshAll() {
+    const tickers = items.map((item) => item.ticker);
     setRefreshing(true);
     setAddInfo(null);
+    setProgress({ done: 0, total: tickers.length });
+
+    let failed = 0;
+    for (const [index, ticker] of tickers.entries()) {
+      try {
+        await apiFetch(`/api/watchlist/${ticker}/refresh`, { method: 'POST' });
+      } catch {
+        failed += 1;
+      }
+      setProgress({ done: index + 1, total: tickers.length });
+    }
+
     try {
-      const data = await apiFetch('/api/watchlist/refresh', { method: 'POST' });
-      setItems(data);
+      setItems(await apiFetch('/api/watchlist'));
       setRefreshedAt(new Date());
+      const warning = refreshFailureMessage(failed, tickers.length);
+      if (warning) setAddInfo({ variant: 'warning', message: warning });
     } catch (err) {
       setAddInfo({ variant: 'danger', message: err.message });
     } finally {
       setRefreshing(false);
+      setProgress(null);
     }
   }
 
@@ -174,7 +193,7 @@ function Watchlist() {
             {refreshing ? (
               <>
                 <Spinner as="span" animation="border" size="sm" className="me-1" />
-                Refreshing all…
+                {refreshLabel(progress)}
               </>
             ) : (
               'Refresh all'

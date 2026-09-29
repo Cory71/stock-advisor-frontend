@@ -270,7 +270,7 @@ honest about data it doesn't have.
 
 ---
 
-## 4. Throttle Finnhub calls across the whole app
+## 4. Throttle Finnhub calls across the whole app ✅
 
 **The problem isn't the Refresh all button — it's that nothing paces calls.**
 Every user shares one Finnhub key and one limit of 60 calls a minute, but each
@@ -297,12 +297,27 @@ bank grading and everything after, since those all add Finnhub calls and the
 limiter should be in place before anything can push past it. Small and bounded:
 about 30–45 minutes.
 
-- [ ] Rate-limit queue inside `finnhubGet` (60 calls/min, shared by every request)
-- [ ] **Refresh all** skips stocks graded in the last hour, so a double click or a
+- [x] `lib/rateLimiter.js` — a first-come, first-served queue; `finnhubGet`
+      waits for a slot before every call. Set to **55**/min rather than 60 to
+      leave headroom for the daily job, which runs on GitHub and doesn't share it.
+- [x] **Refresh all** skips stocks graded in the last hour, so a double click or a
       click right after the daily run costs nothing
-- [ ] Show progress ("Refreshing 12 of 30…") instead of a bare spinner, so a
-      longer wait doesn't look broken
-- [ ] Tests: calls beyond the limit wait rather than fail; the queue drains in order
+- [x] Progress: a new `POST /api/watchlist/:ticker/refresh` refreshes one row, so
+      the page calls it per row and shows "Refreshing 12 of 30…", then reloads the
+      list once. Only rows on the caller's own watchlist are accepted. Partial
+      failures show a calm warning ("2 of 12 couldn't be refreshed right now")
+      instead of an error.
+- [x] Tests: backend 106 → **115** (limiter with a fake clock, one-hour skip,
+      per-row endpoint); frontend 64 → **71** (progress label and messages)
+- [x] Live burst against the real API: 15 stocks at once = **60 calls, 15/15
+      succeeded, 0 failed, 60.3s** — 55 went straight through and the last 5
+      waited for the minute to roll over. Before this, that burst would error.
+- [x] Checked in the browser: the button counted 1 of 3 → 2 of 3 → 3 of 3 and
+      stamped "Updated" with no errors
+
+One existing test changed on purpose: it added a stock and refreshed it
+immediately, expecting a fresh fetch — exactly the case the one-hour rule now
+skips. It backdates the stock first instead.
 
 **Known limit:** the daily refresh (item 2) runs on GitHub's machines, not the
 server, so it doesn't share this queue. It runs at 09:00 UTC and paces itself,
