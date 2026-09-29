@@ -80,6 +80,26 @@ describe('<TrendChart />', () => {
     expect(screen.queryByText(/not shown/i)).not.toBeInTheDocument();
   });
 
+  // Banks have no capital-expenditure line, so the general chart would show
+  // every cash-flow bar missing and a caption implying broken data.
+  it('charts revenue and net income for a bank, without the capital-spending caption', () => {
+    render(
+      <ThemeProvider>
+        <TrendChart
+          model="bank"
+          rawData={{
+            annualBankYears: [2024, 2025],
+            annualBankRevenue: [177e9, 182e9],
+            annualNetIncome: [58e9, 57e9],
+          }}
+        />
+      </ThemeProvider>
+    );
+    expect(screen.getByText('Revenue and net income')).toBeInTheDocument();
+    expect(screen.getByText('Net income')).toBeInTheDocument();
+    expect(screen.queryByText(/capital spending/i)).not.toBeInTheDocument();
+  });
+
   it('still renders when a year has no cash-flow figure', () => {
     renderChart({
       annualYears: [2023, 2024, 2025],

@@ -10,6 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import { useAutoDismiss } from '../lib/useAutoDismiss';
 import { usePageTitle } from '../lib/usePageTitle';
 import GradeScaleCard from '../components/GradeScaleCard';
+import { isBankModel, BANK_MODEL_NOTE, describeCriterion } from '../lib/gradeModel';
 // Loaded on demand: the charting library is ~100 kB gzipped and this is the
 // only page that draws a chart, so it stays out of the initial bundle.
 const TrendChart = lazy(() => import('../components/TrendChart'));
@@ -26,13 +27,6 @@ function gradeColor(grade) {
   }
 }
 
-// Format a dollar figure into something readable ($451B, $99.5M, $1,234, —).
-function formatNumber(n) {
-  if (n == null) return '—';
-  if (Math.abs(n) >= 1_000_000_000) return `$${(n / 1_000_000_000).toFixed(1)}B`;
-  if (Math.abs(n) >= 1_000_000)     return `$${(n / 1_000_000).toFixed(1)}M`;
-  return `$${n.toLocaleString()}`;
-}
 
 // Format a per-share price like "$451.20 USD" — always 2 decimal places.
 // Currency code is appended so prices on non-US exchanges (e.g. SHOP.TO is
@@ -213,6 +207,12 @@ function GradeDetail() {
         <Alert variant="secondary">{data.reason}</Alert>
       )}
 
+      {/* Banks are graded on their own criteria — say so, since the same letter
+          means something different than it does for, say, Apple. */}
+      {isBankModel(data) && (
+        <Alert variant="info">{BANK_MODEL_NOTE}</Alert>
+      )}
+
       {/* Sector caveat shown alongside a real grade when free cash flow is only
           a rough proxy for the business (REITs, insurers, utilities) */}
       {data.note && (
@@ -233,7 +233,7 @@ function GradeDetail() {
                     <strong>{c.name}</strong>
                   </div>
                   <div className="text-muted small ms-2">
-                    {formatNumber(c.value)} vs prior {formatNumber(c.prior)} — {c.source}
+                    {describeCriterion(c)}
                   </div>
                 </li>
               );
@@ -264,10 +264,11 @@ function GradeDetail() {
         </div>
       )}
 
-      {/* Revenue + free cash flow trend. Hides itself when there aren't at
-          least two years of labelled data, so it never leaves an empty frame. */}
+      {/* Revenue trend alongside free cash flow (or net income for banks).
+          Hides itself when there aren't at least two years of labelled data,
+          so it never leaves an empty frame. */}
       <Suspense fallback={null}>
-        <TrendChart rawData={data.rawData} />
+        <TrendChart rawData={data.rawData} model={data.model} />
       </Suspense>
         </Col>
 

@@ -1,4 +1,5 @@
 // TrendChart — annual revenue and free cash flow, side by side per year.
+// Banks get revenue and net income instead (see CHARTS below).
 //
 // Both series are dollar amounts, so they share one vertical axis. That is
 // deliberate: it shows free cash flow as a real fraction of revenue (Duke
@@ -15,13 +16,34 @@ import {
 } from 'recharts';
 import { useTheme } from '../context/ThemeContext';
 import {
-  buildTrendSeries, hasEnoughTrendData, formatBillions,
+  buildTrendSeries, buildBankTrendSeries, hasEnoughTrendData, formatBillions,
   missingYears, describeYears,
 } from '../lib/chartData';
 
 // Bootstrap's blue and teal, which already suit both themes.
 const REVENUE_COLOR = '#0d6efd';
-const FCF_COLOR = '#20c997';
+const SECOND_COLOR = '#20c997';
+
+// What to draw for each grading model. Banks have no free cash flow in the usual
+// sense, so their second series is net income — and their caption leaves out
+// the sentence about unreadable capital spending, which would imply broken data.
+const CHARTS = {
+  general: {
+    title: 'Revenue and free cash flow',
+    build: buildTrendSeries,
+    secondKey: 'fcf',
+    secondName: 'Free cash flow',
+    missingBarNote:
+      "A missing cash-flow bar means that year's filing didn't report capital spending we could read.",
+  },
+  bank: {
+    title: 'Revenue and net income',
+    build: buildBankTrendSeries,
+    secondKey: 'netIncome',
+    secondName: 'Net income',
+    missingBarNote: null,
+  },
+};
 
 // Axis and grid colors need to follow the theme by hand — Recharts draws SVG,
 // so it can't inherit Bootstrap's `data-bs-theme` styling the way markup does.
@@ -49,11 +71,12 @@ function LegendKey({ color, label }) {
   );
 }
 
-function TrendChart({ rawData }) {
+function TrendChart({ rawData, model = 'general' }) {
   // Fall back to light if the chart is ever rendered outside ThemeProvider —
   // wrong colors are better than a crash on the grade page.
   const theme = useTheme()?.theme ?? 'light';
-  const series = buildTrendSeries(rawData);
+  const chart = CHARTS[model] || CHARTS.general;
+  const series = chart.build(rawData);
 
   // Nothing worth drawing: a single year shows no trend, and stocks cached
   // before the year labels existed produce an empty series.
@@ -66,7 +89,7 @@ function TrendChart({ rawData }) {
     <Card className="mb-4">
       <Card.Body>
         <Card.Title as="h2" className="h5 mb-3">
-          Revenue and free cash flow
+          {chart.title}
         </Card.Title>
 
         <div style={{ width: '100%', height: 260 }}>
@@ -92,7 +115,7 @@ function TrendChart({ rawData }) {
                 cursor={{ fill: colors.grid, opacity: 0.3 }}
               />
               <Bar dataKey="revenue" name="Revenue" fill={REVENUE_COLOR} />
-              <Bar dataKey="fcf" name="Free cash flow" fill={FCF_COLOR} />
+              <Bar dataKey={chart.secondKey} name={chart.secondName} fill={SECOND_COLOR} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -101,12 +124,12 @@ function TrendChart({ rawData }) {
             in the opposite order from the bars and ignores a custom payload. */}
         <div className="d-flex justify-content-center gap-4 mt-2">
           <LegendKey color={REVENUE_COLOR} label="Revenue" />
-          <LegendKey color={FCF_COLOR} label="Free cash flow" />
+          <LegendKey color={SECOND_COLOR} label={chart.secondName} />
         </div>
 
         <p className="text-body-secondary small mb-0 mt-2">
-          Full-year figures from each annual report. A missing cash-flow bar means
-          that year's filing didn't report capital spending we could read.
+          Full-year figures from each annual report.
+          {chart.missingBarNote && <> {chart.missingBarNote}</>}
           {/* The bars sit evenly apart, so a skipped year would otherwise look
               like a normal one-year step. Name the missing years outright. */}
           {gaps.length > 0 && (

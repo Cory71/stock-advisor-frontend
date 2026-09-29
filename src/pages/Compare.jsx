@@ -8,11 +8,20 @@ import { Link } from 'react-router-dom';
 import {
   Form, Button, Card, Alert, Spinner, Badge, Row, Col, Table, ButtonGroup
 } from 'react-bootstrap';
+import { modelLabel, criteriaRows } from '../lib/gradeModel';
 import { apiFetch } from '../lib/apiFetch';
 import { useAutoDismiss } from '../lib/useAutoDismiss';
 import { usePageTitle } from '../lib/usePageTitle';
 
 // Bootstrap colour for a letter grade — matches the Grade Detail page.
+// Small "Bank model" tag under a grade, so a bank's letter isn't read as if it
+// meant the same thing as a non-bank's.
+function ModelTag({ result }) {
+  const label = modelLabel(result);
+  if (!label) return null;
+  return <div><Badge bg="info" text="dark" className="fw-normal">{label}</Badge></div>;
+}
+
 function gradeColor(grade) {
   switch (grade) {
     case 'A': return 'success';
@@ -69,6 +78,7 @@ function CompareCards({ results }) {
                   <div className={`display-1 fw-bold text-center text-${gradeColor(r.grade)}`}>
                     {r.grade}
                   </div>
+                  <div className="text-center"><ModelTag result={r} /></div>
                   <ul className="list-unstyled mt-3 mb-0">
                     {r.criteria.map((c, j) => {
                       const b = passBadge(c.passed);
@@ -93,13 +103,13 @@ function CompareCards({ results }) {
 // Table view — criteria as rows, stocks as columns. Makes side-by-side
 // differences pop ("everyone passes except GOOG on this one").
 function CompareTable({ results }) {
-  // Use the first successful result's criteria list as the row template.
-  // If a stock errored out it just shows "—" in every criteria cell.
-  const firstOk = results.find((r) => !r.error);
-  if (!firstOk) {
+  // Rows are every criterion any compared stock uses. A bank and a non-bank are
+  // graded on different criteria, so taking just the first stock's list would
+  // leave the other blank on every row. A stock that errored out shows "—".
+  if (!results.some((r) => !r.error)) {
     return <Alert variant="secondary">No stocks could be graded.</Alert>;
   }
-  const criteriaNames = firstOk.criteria.map((c) => c.name);
+  const criteriaNames = criteriaRows(results);
 
   return (
     <Table responsive bordered className="align-middle">
@@ -123,6 +133,7 @@ function CompareTable({ results }) {
                   <div className={`h3 fw-bold mb-0 mt-2 text-${gradeColor(r.grade)}`}>
                     {r.grade}
                   </div>
+                  <ModelTag result={r} />
                 </Link>
               )}
             </th>
@@ -138,7 +149,16 @@ function CompareTable({ results }) {
                 return <td key={j} className="text-center text-muted">—</td>;
               }
               const criterion = r.criteria.find((c) => c.name === name);
-              const b = passBadge(criterion?.passed);
+              // Not part of this stock's model at all — different from a
+              // criterion that couldn't be read, which shows an N/A badge.
+              if (!criterion) {
+                return (
+                  <td key={j} className="text-center text-muted" title="Not used by this stock's grading model">
+                    —
+                  </td>
+                );
+              }
+              const b = passBadge(criterion.passed);
               return (
                 <td key={j} className="text-center">
                   <Badge bg={b.variant}>{b.label}</Badge>

@@ -1,7 +1,7 @@
 # Sector-Aware Grading — Design
 
 **Date:** 2026-09-01 · **Revised:** 2026-09-28 (§4 rewritten before implementation)
-**Status:** Feature 1 (bank grading) ready to build — roadmap item 5. Feature 2 — roadmap item 6.
+**Status:** Feature 1 (bank grading) **built 2026-09-29** — roadmap item 5. Feature 2 — roadmap item 6.
 
 > **What the 2026-09-28 revision changed, and why.** The criteria and N/A rule
 > held up, but four things built after this spec was written made parts of §4

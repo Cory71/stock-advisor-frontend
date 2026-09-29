@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  buildTrendSeries, hasEnoughTrendData, formatBillions,
+  buildTrendSeries, buildBankTrendSeries, hasEnoughTrendData, formatBillions,
   missingYears, describeYears,
 } from './chartData';
 
@@ -155,5 +155,34 @@ describe('describeYears', () => {
   it('returns an empty string for no years', () => {
     expect(describeYears([])).to.equal('');
     expect(describeYears(null)).to.equal('');
+  });
+});
+
+describe('buildBankTrendSeries', () => {
+  it('pairs revenue and net income with their years', () => {
+    const series = buildBankTrendSeries({
+      annualBankYears: [2025, 2024],
+      annualBankRevenue: [182, 177],
+      annualNetIncome: [57, 58],
+    });
+    expect(series).to.deep.equal([
+      { year: 2024, revenue: 177, netIncome: 58 },
+      { year: 2025, revenue: 182, netIncome: 57 },
+    ]);
+  });
+
+  it('shows a gap, not zero, for an unreadable year', () => {
+    const series = buildBankTrendSeries({
+      annualBankYears: [2024, 2025],
+      annualBankRevenue: [null, 182],
+      annualNetIncome: [58, null],
+    });
+    expect(series[0].revenue).to.equal(null);
+    expect(series[1].netIncome).to.equal(null);
+  });
+
+  it('returns nothing for a stock without bank figures', () => {
+    expect(buildBankTrendSeries({ annualRevenues: [1, 2] })).to.deep.equal([]);
+    expect(buildBankTrendSeries(null)).to.deep.equal([]);
   });
 });

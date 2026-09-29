@@ -325,57 +325,71 @@ so a clash is unlikely but not impossible.
 
 ---
 
-## 5. Bank grading
+## 5. Bank grading ✅
 
-Full design: [sector-aware grading spec](./specs/2026-09-01-sector-aware-grading-design.md) §4.
+Full design: [sector-aware grading spec](./specs/2026-09-01-sector-aware-grading-design.md) §4
+(revised 2026-09-28, before any code, after four parts of the original plan were
+overtaken by items 0–4).
 
-Turns `N/A` into a real grade for banks, and creates the bank peer pool that
-item 6 needs. Yield on the current cache is small (`JPM`, `BAC`), but bank
-tickers are searched far more often than their share of the cache suggests.
+Banks have no free cash flow in the usual sense, so the general model returned
+N/A for every one of them. They now get a grade from their own model.
 
-**Spec revised 2026-09-28, before any code** — four parts of the original plan
-were overtaken by items 0–4. The biggest: the provisional medians came from a
-pool that included GS, MS, SCHW and STT, which Finnhub doesn't label `Banking`,
-so they'd have set the bar for banks they're never compared with. The spec's
-header lists all four changes.
+**Result — the 14 `Banking`-labelled banks:**
 
-**First thing to confirm (spec §4.4):** a strict "above the median" rule turns
-into coin flips — four banks sit within 0.02pp of the 1.00% ROA median. The
-spec recommends a **5% tolerance band** ("not clearly below the typical bank").
-Default is the band unless overridden.
+| Grade | Banks |
+| --- | --- |
+| A | JPM, PNC |
+| B | USB, RF, MTB, HBAN |
+| C | BAC, FITB, KEY, ZION |
+| D | WFC |
+| F | C, TFC, CFG |
 
-Build order — the medians file must exist before the grader ships:
+RY and TD stay N/A — Canadian, no filings at this tier. Many banks fail net
+income growth because 2021 was a record year (reserve releases after COVID), and
+the five-year window starts there; that's accurate, not a bug.
 
-- [ ] **Step 1 — one shared "fetch, grade, save" function, before any bank code.**
-      Five places currently repeat the same three steps: the grade page,
-      watchlist, compare, the daily refresh and the seed script. Merge them into
-      `lib/regradeStock.js`, so the choice of grading model later lives in one
-      line of one file instead of five places to remember. Do it as a pure
-      refactor with **no behaviour change**: the existing tests and a full
-      regression run must show every grade identical. Done first so that, if a
-      grade moves during item 5, it can only be the bank model and not the
-      refactor. If merging turns up a real difference between the copies (e.g.
-      the daily refresh doesn't save `ticker`), stop and decide it explicitly
-      rather than picking one quietly.
-- [ ] Safety-net test: fails if any file other than `lib/regradeStock.js` calls
-      `gradeStock` directly, so a sixth copy can't creep back in later
-- [ ] `parseBankReports` in the provider — its own parser (USB and TFC have no
-      revenue concept, so `parseAnnualReports` would drop every year); keeps one
-      report per year by largest total assets; applies `withinLookback`
-- [ ] `BANK_*` concept lists and the net-interest + noninterest revenue fallback
-      — `REVENUE_CONCEPTS`, `OCF_CONCEPTS`, `CAPEX_CONCEPTS` untouched
-- [ ] Seed the 14 `Banking`-labelled banks once (JPM BAC WFC C USB PNC TFC FITB
-      KEY RF MTB HBAN CFG ZION) — the daily refresh keeps them fresh after that
-- [ ] `scripts/compute-bank-medians.js` → committed `lib/bankMedians.json`;
-      refuses fewer than 8 banks; prints old → new and which grades would move
-- [ ] `lib/gradingBank.js` — pure, medians passed in; 2 growth + 3 ratio criteria
-      with the §4.4 band; 2+ null criteria → `N/A`
-- [ ] `lib/selectGrader.js` — `industry === 'Banking'` only — and route **every**
-      grading path through it: grade page, watchlist, compare, daily refresh
-- [ ] `Stock.model` field (`'general' | 'bank'`, default `'general'`)
-- [ ] Frontend: label the model on the grade card and compare page; bank chart
-      shows revenue + net income, without the capital-spending caption
-- [ ] **Regression test: every currently-graded ticker keeps an identical grade**
+- [x] **Step 1 — one shared grade-and-save function** (`lib/gradeAndSave.js`)
+      replacing five hand-copied versions. Done first as a pure refactor: 81
+      stocks re-graded through it, **0 grades moved**. Merging turned up three
+      small differences between the copies (name fallback, the daily refresh not
+      saving `ticker`, an old Mongoose option name) — none affected a grade.
+- [x] Safety-net test: fails if anything but `gradeAndSave` calls a grader.
+      Checked it really fails by planting a stray call. The one allowed
+      exception is the medians script, which only *previews* grade changes.
+- [x] `parseBankReports` — its own parser (USB and TFC have no revenue concept,
+      so the general parser would drop every year); one report per year by
+      largest total assets; the calendar-year window. Bank fields are attached
+      only to `Banking` stocks, so no other stock's cached data changed.
+- [x] Revenue fallback (net interest + noninterest income) and PNC's
+      company-prefixed net income. **Found while checking the grades:** FITB and
+      TFC file some years only as equity *including* noncontrolling interest,
+      which left book value growth unreadable. Added as a fallback — for banks
+      that stake is tiny. No letters changed (both banks' equity fell either way).
+- [x] Seeded the 14 banks once (`npm run seed:banks`); the daily refresh keeps
+      them current from here.
+- [x] `lib/bankMedians.json`, written by `npm run bank-medians`: ROE **10.5%**,
+      ROA **1.00%**, efficiency **60.7%** — matching the hand calculation, which
+      confirmed the parser reads the filings correctly. Refuses fewer than 8 banks.
+- [x] `lib/gradingBank.js` — pure, medians passed in; **5% tolerance band**
+      (spec §4.4) so a ratio passes unless clearly worse than the typical bank;
+      2+ unreadable criteria → N/A. Uses the banks' own report dates for the
+      freshness check, since the general parser may find none.
+- [x] `Stock.model` (`'general' | 'bank'`) saved with every grade and sent by
+      the grade and compare routes
+- [x] **Frontend:** bank-model note on the grade page; ratios printed as
+      percentages ("15.7% vs typical bank 10.5%") instead of dollars; bank
+      chart shows revenue + net income without the capital-spending caption
+- [x] **Compare table fix, found along the way:** rows came from the *first*
+      stock's criteria, so a bank compared with a non-bank showed "—" on every
+      row. Rows now cover every compared stock's criteria, a stock shows "—" only
+      on the other model's rows, and bank grades carry a "Bank model" tag.
+- [x] **Final regression: 93 stocks re-graded, 0 non-bank grades moved**
+- [x] Checked in the browser: JPM's page and an AAPL-vs-JPM compare table
+- [x] Tests: backend 115 → **145**, frontend 71 → **83**
+
+**Recurring task:** re-run `npm run bank-medians` roughly quarterly, after banks'
+annual reports land. It prints old → new medians and which grades would move;
+review, then commit `lib/bankMedians.json`.
 
 ---
 

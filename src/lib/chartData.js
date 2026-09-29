@@ -35,6 +35,27 @@ export function buildTrendSeries(rawData) {
     .sort((a, b) => a.year - b.year);
 }
 
+// The bank version: revenue and net income, one row per year. Banks have no
+// capital-expenditure line by nature, so a free-cash-flow series would be
+// empty for every year and read as broken data.
+export function buildBankTrendSeries(rawData) {
+  if (!rawData) return [];
+
+  const years = toArray(rawData.annualBankYears);
+  const revenues = toArray(rawData.annualBankRevenue);
+  const netIncomes = toArray(rawData.annualNetIncome);
+
+  if (years.length === 0 || years.length !== revenues.length) return [];
+
+  return years
+    .map((year, i) => ({
+      year,
+      revenue: typeof revenues[i] === 'number' ? revenues[i] : null,
+      netIncome: typeof netIncomes[i] === 'number' ? netIncomes[i] : null,
+    }))
+    .sort((a, b) => a.year - b.year);
+}
+
 // The chart only says something useful with at least two years to compare.
 export function hasEnoughTrendData(series) {
   return Array.isArray(series) && series.length >= 2;
