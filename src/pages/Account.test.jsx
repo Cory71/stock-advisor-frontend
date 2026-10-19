@@ -12,6 +12,10 @@ vi.mock('../context/AuthContext', () => ({ useAuth: () => authState }));
 const apiFetch = vi.fn();
 vi.mock('../lib/apiFetch', () => ({ apiFetch: (...args) => apiFetch(...args) }));
 
+// The real PDF is tested in dataPdf.test.js; here we only check it's asked for.
+const downloadDataPdf = vi.fn();
+vi.mock('../lib/dataPdf', () => ({ downloadDataPdf: (...args) => downloadDataPdf(...args) }));
+
 import Account from './Account';
 
 function renderPage() {
@@ -25,6 +29,7 @@ function renderPage() {
 describe('<Account />', () => {
   beforeEach(() => {
     apiFetch.mockReset();
+    downloadDataPdf.mockReset();
     Object.assign(authState, {
       user: { email: 'cory@example.com', displayName: 'Cory' },
       loading: false,
@@ -104,5 +109,18 @@ describe('<Account />', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Yes, clear it' }));
     expect(apiFetch).toHaveBeenCalledWith('/api/history', { method: 'DELETE' });
     expect(await screen.findByText('Cleared 7 searches from your history.')).toBeInTheDocument();
+  });
+
+  it('downloads the data as a PDF', async () => {
+    const exported = { account: { email: 'cory@example.com' }, watchlist: [], searchHistory: [] };
+    apiFetch.mockResolvedValue(exported);
+    renderPage();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Download my data' }));
+
+    expect(apiFetch).toHaveBeenCalledWith('/api/auth/me/export');
+    await vi.waitFor(() => expect(downloadDataPdf).toHaveBeenCalled());
+    expect(downloadDataPdf.mock.calls[0][0]).toBe(exported);
+    expect(downloadDataPdf.mock.calls[0][1]).toMatch(/^stockgrader-data-\d{4}-\d{2}-\d{2}\.pdf$/);
   });
 });

@@ -520,7 +520,7 @@ inventing a settings surface anyway.
 - [x] Move the dark-mode toggle into it (see the discoverability note below)
 - [x] **Delete my account** — with a real confirmation step
 - [x] Cascade the delete: `User`, `SearchHistory`, `WatchlistItem`
-- [x] Export my data — watchlist and search history as JSON
+- [x] Export my data — watchlist and search history, downloaded as a PDF
 - [x] Clear search history — one action, keeps the account
 - [x] Change display name (the field exists; only settable at signup today)
 - [x] `DELETE /api/auth/me` + tests; confirm a deleted user's token stops working
@@ -542,6 +542,12 @@ the delete has room to explain itself. New endpoints are `PATCH /api/auth/me`
 - *Clear history:* a second click ("Yes, clear it") confirms it.
 - *Export:* never includes `passwordHash`. It records which sign-in methods the
   account has instead.
+- *Export format — PDF, changed from JSON the same day.* JSON is the usual
+  format for data exports, but most people can't open a .json file. The
+  backend still sends JSON; the browser turns it into a PDF with readable
+  dates and a table per section (`src/lib/dataPdf.js`). The PDF library
+  (~139 kB compressed) loads only when the button is clicked, so it adds
+  nothing to normal page loads.
 
 Tests: 13 backend tests (suite **167**) and 14 frontend tests (suite **97**).
 Checked by hand in the browser at desktop and phone widths, including a real
@@ -603,10 +609,14 @@ largely exists.
 ## 10. Export a graded report as PDF
 
 Last deliberately: it renders whatever the grade card contains, so it should be
-built once, after the card is final. *(This was in the original stretch list but
-dropped off the README's Future Improvements — worth restoring there.)*
+built once, after the card is final.
 
-- [ ] Choose the approach (client-side print stylesheet vs. a PDF library)
+- [x] Choose the approach (client-side print stylesheet vs. a PDF library) —
+      **a PDF library (jsPDF + jspdf-autotable)**, decided when the item 8 data
+      export moved to PDF. A print stylesheet opens the print dialog and asks
+      the user to pick "Save as PDF", which is confusing; the library gives a
+      normal file download. Reuse `src/lib/dataPdf.js`'s pattern: build the
+      content as plain data first, then draw it, loaded only on click.
 - [ ] Include the letter, criteria checklist, the numbers used, and the chart
 - [ ] Include sector context and the model label where present
 - [ ] Confirm dark mode doesn't leak into the printed output

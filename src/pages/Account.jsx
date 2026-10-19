@@ -10,7 +10,7 @@ import { apiFetch } from '../lib/apiFetch';
 import { useAuth } from '../context/AuthContext';
 import { usePageTitle } from '../lib/usePageTitle';
 import { useAutoDismiss } from '../lib/useAutoDismiss';
-import { emailMatches, exportFileName, downloadJson } from '../lib/account';
+import { emailMatches, exportFileName } from '../lib/account';
 
 // ---------- Display name ----------
 
@@ -77,7 +77,9 @@ function YourDataCard() {
     setInfo(null);
     try {
       const data = await apiFetch('/api/auth/me/export');
-      downloadJson(data, exportFileName());
+      // The PDF code is loaded only now, so it never slows the rest of the app.
+      const { downloadDataPdf } = await import('../lib/dataPdf');
+      downloadDataPdf(data, exportFileName());
     } catch (err) {
       setInfo({ variant: 'danger', message: err.message });
     } finally {
@@ -106,7 +108,7 @@ function YourDataCard() {
         <Card.Title as="h2" className="h5">Your data</Card.Title>
 
         <p className="small text-body-secondary mb-2">
-          Download your account details, watchlist and search history as a file.
+          Download your account details, watchlist and search history as a PDF.
         </p>
         <Button variant="outline-primary" onClick={handleExport} disabled={busy !== null}>
           {busy === 'export' ? 'Preparing…' : 'Download my data'}
