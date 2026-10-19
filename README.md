@@ -110,11 +110,16 @@ Same suite but re-runs whenever a file changes — handy during development.
 - Login / Signup show a **spinner** while signing in, and warm up the backend on page load so the first request after the server has been idle feels fast.
 - Ticker **or company name** search — backend resolves names to canonical tickers.
 - Grade card with letter grade, 5-criteria breakdown, share price + currency, company name, "graded at" timestamp.
-- **Plain-English explanations** when a stock can't be graded (e.g. data too old, or a bank/insurer the model doesn't fit), plus **sector caveats** on REITs, insurers, and utilities where free cash flow is only a rough proxy.
+- **Why this grade?** — a one-line summary plus a plain-English sentence for every criterion, with jargon like free cash flow explained the first time it appears.
+- **Sector comparison** — revenue growth, free cash flow margin and free cash flow growth against the median of the stock's industry, shown only when at least 8 stocks in that industry have been graded, always with the peer count.
+- **Bank grading** — banks are graded on their own five criteria (book value, net income, return on equity, return on assets, efficiency) and labelled as such.
+- **Trend chart** of revenue and free cash flow (revenue and net income for banks).
+- **Plain-English explanations** when a stock can't be graded (e.g. data too old), plus **sector caveats** on REITs, insurers, and utilities where free cash flow is only a rough proxy.
 - Watchlist with `gradeAtAdd` snapshot per row, current grade comparison (▲ Upgraded / ▼ Downgraded / — No change), last price, and a phone-friendly column-hiding layout.
 - Compare page with Cards and Table view modes.
 - Recent searches with company name beside each ticker.
 - Dark / light mode toggle (respects OS preference; persists to `localStorage`).
+- **Account settings** — change your display name, download your data, clear search history, or delete your account.
 - About card explainer on Login, Signup, and the logged-out Home.
 - Auto-dismissing alerts (5 seconds) and decorative candlestick band on sparse pages.
 - Dynamic page titles (`AAPL · StockGrader`, `Watchlist · StockGrader`, etc).
@@ -126,7 +131,8 @@ Same suite but re-runs whenever a file changes — handy during development.
 3. **Refresh** — grades are cached for 24 hours; click **Refresh** on a stock's page to pull fresh data on demand.
 4. **Build a watchlist** — add tickers to track them. Each row shows the grade when you added it vs. the current grade (▲ upgraded / ▼ downgraded), and **Refresh all** re-grades every row at once.
 5. **Compare** — view 2–3 stocks side by side in card or table form.
-6. **Dark / light mode** — toggle in the navbar; your choice is remembered.
+6. **Dark / light mode** — in the menu under your name (or the navbar when logged out); your choice is remembered.
+7. **Account settings** — from the same menu: rename yourself, download or clear your data, or delete your account.
 
 ## Technologies Used
 
@@ -155,11 +161,6 @@ Same suite but re-runs whenever a file changes — handy during development.
 Planned and sequenced in [`roadmap.md`](./docs/roadmap.md), which records the
 dependencies between them:
 
-- **Charts** of revenue and free-cash-flow trends — the data is already cached, so this is frontend-only.
-- **Automatic watchlist refresh** on a schedule — the manual per-stock **Refresh** and **Refresh all** exist today; running it on a timer is the next step.
-- **Bank grading** — banks have no capital expenditure, so the revenue/FCF model returns N/A for them. A second criteria set (ROE, return on assets, efficiency ratio) would grade them properly.
-- **Sector-relative grading** — compare a stock against its own sector's median rather than against every company, building on the current sector-fit awareness.
-- **Richer "Why this grade?" explanations** generated from the criteria, extending today's N/A reasons and sector caveats.
 - **Email alerts** when a watchlist ticker's grade changes.
 - **PDF export** of a graded report.
 

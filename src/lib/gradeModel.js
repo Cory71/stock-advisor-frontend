@@ -31,9 +31,10 @@ export function formatCurrency(n) {
 }
 
 // Format a ratio as a percentage: 0.157 -> 15.7%, or — when missing.
+// Small ratios (under 2%, like a bank's return on assets) get an extra digit.
 export function formatPercent(n) {
   if (n == null) return '—';
-  return `${(n * 100).toFixed(n < 0.02 ? 2 : 1)}%`;
+  return `${(n * 100).toFixed(Math.abs(n) < 0.02 ? 2 : 1)}%`;
 }
 
 // The line under a criterion. Bank ratios compare against the typical bank;

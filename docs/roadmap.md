@@ -36,7 +36,7 @@ Everything else is ordered by value-per-hour.
 
 ---
 
-## 0. Clear the stale cache
+## 0. Clear the stale cache ✅
 
 **Assumed to be a no-code refresh. It wasn't** — re-grading surfaced two real
 provider bugs. The three stocks were not stale upstream; the provider was
@@ -419,7 +419,7 @@ the five-year window starts there; that's accurate, not a bug.
 
 ---
 
-## 6. Sector-relative context
+## 6. Sector-relative context ✅
 
 Full design: [sector-aware grading spec](./specs/2026-09-01-sector-aware-grading-design.md) §5.
 
@@ -427,28 +427,81 @@ Compares a stock against its own sector's median rather than against every
 company. Answers the question the app currently gets wrong by implication:
 *is a 2% FCF margin bad?* For a grocer, no.
 
-- [ ] Promote `industry` to an indexed field on `Stock`, backfilled from `rawData.industry`
-- [ ] `models/SectorBaseline.js` — per-industry medians + peer count
-- [ ] Aggregation job to compute baselines, run after each seed
-- [ ] `lib/sectorContext.js` — above / at / below median
-- [ ] Suppress the comparison below 8 peers (show nothing, never a weak claim)
-- [ ] Always display the peer count alongside the comparison
-- [ ] Seed broadly enough to lift more industries past the 8-peer floor
-- [ ] Surface on the grade card, beneath the letter
+- [x] Promote `industry` to an indexed field on `Stock`, backfilled from `rawData.industry`
+- [x] `models/SectorBaseline.js` — per-industry medians + peer count
+- [x] Aggregation job to compute baselines, run after each seed — and after
+      every daily refresh too (`npm run sector-baselines` runs it by hand)
+- [x] `lib/sectorContext.js` — above / at / below median
+- [x] Suppress the comparison below 8 peers (show nothing, never a weak claim)
+- [x] Always display the peer count alongside the comparison
+- [x] Seed broadly enough to lift more industries past the 8-peer floor
+- [x] Surface on the grade card, beneath the letter
+
+**Result: 2 industries → 9.** Before seeding, only Technology and Media had
+8 graded stocks. `npm run seed:sectors` added 72 stocks (69 graded; PSX, CI
+and DE came back N/A), all checked against Finnhub's industry label first.
+Now shown: Semiconductors (16), Technology (15), Hotels, Restaurants & Leisure
+(14), Retail (12), Energy (11), Aerospace & Defense (9), Health Care (9),
+Machinery (9), Media (8). The medians look like the real world — Retail runs a
+4.3% free cash flow margin, Technology 23.7%.
+
+**Decisions.**
+
+- *Three metrics:* revenue growth per year, free cash flow margin, free cash
+  flow growth per year — all worked out from cached numbers, no new Finnhub
+  calls. Growth uses the real span of years, so a missing year (Walmart has
+  no 2023 report) doesn't inflate it. Growth from or to a loss has no honest
+  percentage, so it's left out rather than guessed.
+- *Peers counted per metric.* A stock whose free cash flow growth can't be
+  worked out still counts towards the other two. Each line shows its own
+  count, and a metric under 8 is hidden on its own — Media currently shows
+  two lines because only 7 stocks have a usable FCF growth figure.
+- *"About the median" means within one percentage point,* so a stock isn't
+  called above or below over a rounding-sized gap.
+- *One company counts once.* GOOG and GOOGL are both Alphabet; counting both
+  would weigh it twice in an 8-stock pool. Found in the preview before seeding.
+- *Only general-model stocks with a real grade.* Banks are already compared
+  with banks inside their own grade, and N/A stocks have nothing to compare.
+- *Looked up when the page loads, never stored on the stock,* so a cached
+  grade picks up new baselines without being re-graded. It never changes the
+  letter, and the card says so.
+
+**Cost:** the daily refresh now covers ~165 stocks instead of ~93, so it takes
+about 13 minutes instead of 7. The workflow's time limit went from 20 to 30
+minutes.
+
+Tests: backend 167 → **192**. Checked in the browser against real data: NVDA
+(above on all three), COST (above on growth, below on margin), JPM (bank — no
+comparison), F (4 Automobiles peers — hidden), PSX (N/A — hidden).
 
 ---
 
-## 7. Richer "Why this grade?" explanations
+## 7. Richer "Why this grade?" explanations ✅
 
 Extends today's N/A reasons and sector caveats into a plain-English explanation
 generated from the criteria. Sits here because it can now describe *both* grading
 models and a stock's sector standing.
 
-- [ ] Generate a sentence per criterion from its name, value, and prior
-- [ ] Summarize the overall grade in one line
-- [ ] Cover the bank model's criteria too
-- [ ] Fold in sector context when a baseline exists
-- [ ] Keep the wording beginner-friendly — no jargon without a gloss
+- [x] Generate a sentence per criterion from its name, value, and prior
+- [x] Summarize the overall grade in one line
+- [x] Cover the bank model's criteria too
+- [x] Fold in sector context when a baseline exists
+- [x] Keep the wording beginner-friendly — no jargon without a gloss
+
+**What it looks like.** The old "Criteria" heading is now **Why this grade?**
+It opens with one line — *"NVDA passed 5 of 5 checks, which earns an A"* — plus
+the sector sentence when there is one. Each criterion then gets a sentence
+above its numbers, e.g. *"Free cash flow — the cash left over after paying for
+operations and investments — was −$2.0B, so the company spent more cash than
+it brought in."*
+
+All of it lives in `src/lib/explainGrade.js` as pure functions. A test lists
+every criterion name the backend sends and fails if one has no sentence for
+pass, fail or N/A, so renaming a criterion on the backend can't quietly leave
+it unexplained. Checks that couldn't be judged are called out in the summary
+("counts as a miss"), because N/A scoring as zero isn't obvious.
+
+Tests: frontend 97 → **118**.
 
 ---
 

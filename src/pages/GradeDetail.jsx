@@ -10,7 +10,9 @@ import { useAuth } from '../context/AuthContext';
 import { useAutoDismiss } from '../lib/useAutoDismiss';
 import { usePageTitle } from '../lib/usePageTitle';
 import GradeScaleCard from '../components/GradeScaleCard';
+import SectorComparison from '../components/SectorComparison';
 import { isBankModel, BANK_MODEL_NOTE, describeCriterion } from '../lib/gradeModel';
+import { explainCriterion, summarizeGrade, explainSector } from '../lib/explainGrade';
 // Loaded on demand: the charting library is ~100 kB gzipped and this is the
 // only page that draws a chart, so it stays out of the initial bundle.
 const TrendChart = lazy(() => import('../components/TrendChart'));
@@ -166,6 +168,9 @@ function GradeDetail() {
   }
 
   // Happy path — we have a graded result.
+  // A sentence on how it compares with its industry, or null if it can't be.
+  const sectorSentence = explainSector(data.sectorContext);
+
   return (
     <div>
       <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
@@ -219,19 +224,29 @@ function GradeDetail() {
         <Alert variant="warning">{data.note}</Alert>
       )}
 
-      {/* Criteria — only render when we have any */}
+      {/* How it compares with its industry — only when enough peers exist */}
+      <SectorComparison context={data.sectorContext} />
+
+      {/* Why this grade? — a one-line summary, then each criterion in plain
+          English with the numbers underneath. Only when there are criteria. */}
       {Array.isArray(data.criteria) && data.criteria.length > 0 && (
         <>
-          <h2 className="h5">Criteria</h2>
+          <h2 className="h5">Why this grade?</h2>
+          <p>
+            {summarizeGrade(data)}
+            {sectorSentence && <> {sectorSentence}</>}
+          </p>
           <ul className="list-unstyled">
             {data.criteria.map((c, i) => {
               const badge = passBadge(c.passed);
+              const sentence = explainCriterion(c);
               return (
                 <li key={i} className="mb-3">
                   <div className="d-flex align-items-center gap-2">
                     <Badge bg={badge.variant}>{badge.label}</Badge>
                     <strong>{c.name}</strong>
                   </div>
+                  {sentence && <div className="small ms-2 mt-1">{sentence}</div>}
                   <div className="text-muted small ms-2">
                     {describeCriterion(c)}
                   </div>
