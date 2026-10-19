@@ -606,7 +606,7 @@ largely exists.
 
 ---
 
-## 10. Export a graded report as PDF
+## 10. Export a graded report as PDF ✅
 
 Last deliberately: it renders whatever the grade card contains, so it should be
 built once, after the card is final.
@@ -617,9 +617,34 @@ built once, after the card is final.
       the user to pick "Save as PDF", which is confusing; the library gives a
       normal file download. Reuse `src/lib/dataPdf.js`'s pattern: build the
       content as plain data first, then draw it, loaded only on click.
-- [ ] Include the letter, criteria checklist, the numbers used, and the chart
-- [ ] Include sector context and the model label where present
-- [ ] Confirm dark mode doesn't leak into the printed output
+- [x] Include the letter, criteria checklist, the numbers used, and the chart
+- [x] Include sector context and the model label where present
+- [x] Confirm dark mode doesn't leak into the printed output
+
+**What was built.** A **Download PDF** button beside "Add to watchlist" on
+every grade page saves a report such as `NVDA-report-2026-10-19.pdf`: ticker,
+company, price and grading time, the letter in a coloured box, any notes (N/A
+reason, bank model, sector caveat), the one-line summary, the sector comparison
+table, every criterion with its "Why this grade?" sentence and numbers (Pass /
+Fail coloured as on the page), the trend chart, the grade scale, and a footer
+on each page. A typical report fits on one page.
+
+**Decisions.**
+
+- *The chart is drawn, not screenshotted.* `src/lib/pdfChart.js` works out the
+  bar positions from the yearly numbers, with round gridline steps and a zero
+  line, and the PDF draws plain rectangles. It stays sharp when printed, and a
+  missing year is a gap rather than a zero bar, as on the page.
+- *Dark mode can't leak in,* because nothing is copied from the screen and the
+  colours are fixed for a white page. A test builds the same report under the
+  light and dark themes and checks the files are byte-for-byte identical.
+- *Content first, drawing second.* `src/lib/gradeReport.js` decides what goes
+  in as plain data, reusing the page's own wording, so the report can't drift
+  from what the page says. Only `src/lib/gradePdf.js` touches the PDF library,
+  and it loads on click.
+
+Tests: frontend 125 → **140**. Checked by downloading real reports for NVDA
+(general model, sector comparison) and JPM (bank model, net income chart).
 
 ---
 

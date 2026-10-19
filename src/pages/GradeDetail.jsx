@@ -13,6 +13,7 @@ import GradeScaleCard from '../components/GradeScaleCard';
 import SectorComparison from '../components/SectorComparison';
 import { isBankModel, BANK_MODEL_NOTE, describeCriterion } from '../lib/gradeModel';
 import { explainCriterion, summarizeGrade, explainSector } from '../lib/explainGrade';
+import { reportFileName } from '../lib/gradeReport';
 // Loaded on demand: the charting library is ~100 kB gzipped and this is the
 // only page that draws a chart, so it stays out of the initial bundle.
 const TrendChart = lazy(() => import('../components/TrendChart'));
@@ -62,6 +63,9 @@ function GradeDetail() {
   // True while a manual "Refresh" re-grade is in flight.
   const [refreshing, setRefreshing] = useState(false);
 
+  // True while the PDF report is being built.
+  const [downloading, setDownloading] = useState(false);
+
   // Banner auto-dismisses after 5s so the user doesn't have to click the X.
   useAutoDismiss(addInfo, setAddInfo);
 
@@ -100,6 +104,21 @@ function GradeDetail() {
       setAddInfo({ variant: 'danger', message: err.message });
     } finally {
       setRefreshing(false);
+    }
+  }
+
+  // Save this grade as a PDF report. The PDF code is loaded only now, so it
+  // never slows down the page for people who don't use it.
+  async function handleDownloadPdf() {
+    setDownloading(true);
+    setAddInfo(null);
+    try {
+      const { downloadGradePdf } = await import('../lib/gradePdf');
+      downloadGradePdf(data, reportFileName(data.ticker || upper));
+    } catch {
+      setAddInfo({ variant: 'danger', message: "Couldn't create the PDF. Please try again." });
+    } finally {
+      setDownloading(false);
     }
   }
 
@@ -183,9 +202,14 @@ function GradeDetail() {
           </div>
           {data.name && <p className="text-muted mb-0">{data.name}</p>}
         </div>
-        <Button onClick={handleAddToWatchlist} disabled={adding} variant="outline-primary">
-          {adding ? 'Adding…' : 'Add to watchlist'}
-        </Button>
+        <div className="d-flex gap-2">
+          <Button onClick={handleDownloadPdf} disabled={downloading} variant="outline-secondary">
+            {downloading ? 'Preparing…' : 'Download PDF'}
+          </Button>
+          <Button onClick={handleAddToWatchlist} disabled={adding} variant="outline-primary">
+            {adding ? 'Adding…' : 'Add to watchlist'}
+          </Button>
+        </div>
       </div>
 
       {addInfo && (

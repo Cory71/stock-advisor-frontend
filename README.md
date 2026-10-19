@@ -114,12 +114,13 @@ Same suite but re-runs whenever a file changes — handy during development.
 - **Sector comparison** — revenue growth, free cash flow margin and free cash flow growth against the median of the stock's industry, shown only when at least 8 stocks in that industry have been graded, always with the peer count.
 - **Bank grading** — banks are graded on their own five criteria (book value, net income, return on equity, return on assets, efficiency) and labelled as such.
 - **Trend chart** of revenue and free cash flow (revenue and net income for banks).
+- **PDF report** of any grade — letter, explanations, sector comparison and chart on one printable page.
 - **Plain-English explanations** when a stock can't be graded (e.g. data too old), plus **sector caveats** on REITs, insurers, and utilities where free cash flow is only a rough proxy.
 - Watchlist with `gradeAtAdd` snapshot per row, current grade comparison (▲ Upgraded / ▼ Downgraded / — No change), last price, and a phone-friendly column-hiding layout.
 - Compare page with Cards and Table view modes.
 - Recent searches with company name beside each ticker.
 - Dark / light mode toggle (respects OS preference; persists to `localStorage`).
-- **Account settings** — change your display name, download your data, clear search history, or delete your account.
+- **Account settings** — change your display name, download your data as a PDF, clear search history, or delete your account.
 - About card explainer on Login, Signup, and the logged-out Home.
 - Auto-dismissing alerts (5 seconds) and decorative candlestick band on sparse pages.
 - Dynamic page titles (`AAPL · StockGrader`, `Watchlist · StockGrader`, etc).
@@ -162,7 +163,6 @@ Planned and sequenced in [`roadmap.md`](./docs/roadmap.md), which records the
 dependencies between them:
 
 - **Email alerts** when a watchlist ticker's grade changes.
-- **PDF export** of a graded report.
 
 ## Project Docs
 
