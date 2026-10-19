@@ -1,5 +1,7 @@
 // Helpers for the Account page.
 
+import { gradeChange } from './grade';
+
 // True when the email typed to confirm a delete matches the account's email.
 // Ignores case and surrounding spaces — the server applies the same rule.
 export function emailMatches(typed, accountEmail) {
@@ -56,9 +58,14 @@ export function dataReport(data, { timeZone } = {}) {
       },
       {
         heading: `Watchlist (${watchlist.length})`,
-        head: ['Ticker', 'Grade when added', 'Added on'],
+        head: ['Ticker', 'Grade when added', 'Current grade', 'Change', 'Added on'],
         rows: watchlist.map((item) => [
-          item.ticker, item.gradeWhenAdded || '—', formatDate(item.addedAt, { timeZone }),
+          item.ticker,
+          item.gradeWhenAdded || '—',
+          item.currentGrade || '—',
+          // Same Upgraded / Downgraded / No change wording as the watchlist page.
+          gradeChange(item.gradeWhenAdded, item.currentGrade)?.label || '—',
+          formatDate(item.addedAt, { timeZone }),
         ]),
         empty: 'Your watchlist is empty.',
       },

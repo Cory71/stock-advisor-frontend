@@ -33,7 +33,10 @@ describe('dataReport', () => {
       createdAt: '2026-09-01T10:00:00Z',
       signInMethods: { password: true, google: true },
     },
-    watchlist: [{ ticker: 'AAPL', gradeWhenAdded: 'B', addedAt: '2026-10-01T09:00:00Z' }],
+    watchlist: [
+      { ticker: 'AAPL', gradeWhenAdded: 'B', currentGrade: 'A', addedAt: '2026-10-01T09:00:00Z' },
+      { ticker: 'OLD', gradeWhenAdded: 'C', currentGrade: null, addedAt: '2026-10-02T09:00:00Z' },
+    ],
     searchHistory: [],
   };
   const report = () => dataReport(data, { timeZone: 'UTC' });
@@ -54,10 +57,15 @@ describe('dataReport', () => {
     ]);
   });
 
-  it('lists the watchlist with a count in the heading', () => {
+  // Both grades, so the PDF shows whether a stock improved since it was added.
+  it('lists the watchlist with the grade then, the grade now and the change', () => {
     const watchlist = report().sections[1];
-    expect(watchlist.heading).to.equal('Watchlist (1)');
-    expect(watchlist.rows).to.deep.equal([['AAPL', 'B', 'Oct 1, 2026']]);
+    expect(watchlist.heading).to.equal('Watchlist (2)');
+    expect(watchlist.rows[0]).to.deep.equal(['AAPL', 'B', 'A', 'Upgraded', 'Oct 1, 2026']);
+  });
+
+  it('shows a dash when a stock has no current grade', () => {
+    expect(report().sections[1].rows[1]).to.deep.equal(['OLD', 'C', '—', '—', 'Oct 2, 2026']);
   });
 
   it('says so when a section has nothing in it', () => {
