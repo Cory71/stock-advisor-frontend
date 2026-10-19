@@ -203,6 +203,27 @@ on view.
 **Known caveat:** GitHub pauses scheduled workflows after 60 days with no repo
 activity. It emails a warning first, and one click re-enables it.
 
+**Follow-up, 19 October — grades flipping between days.** On 7–9 October the
+daily run changed 18, 18 and 13 grades, many flipping straight back (NVIDIA
+A → C → A, MongoDB C → A → C), then nothing changed for ten days. No code had
+changed and no company had filed anything new, so Finnhub's data moved.
+
+- [x] Ruled out duplicate quarterly reports (the first lead): none of the
+      flipped stocks has any in the recent period.
+- [x] Found the fragile part: every flipped stock currently fails only the two
+      **TTM** criteria, or none. TTM is built from whichever quarterly report
+      Finnhub returns as newest, with no check that it's the expected one — a
+      quarter briefly missing from the feed shifts or nulls those two criteria.
+- [x] What Finnhub sent on those days can't be recovered, so the next
+      occurrence now explains itself: the daily log records which criteria
+      changed and which quarter TTM was built from ("TTM built from 2027Q2 →
+      2027Q1"). Backend tests 151 → 154.
+- [ ] **If it recurs:** read the log. If the TTM quarter shifted, the fix is to
+      check the newest quarterly report is the expected one before trusting it.
+
+Most likely window for a repeat: late October to mid-November, when companies
+file their next quarterly reports.
+
 **Not fixed, noticed along the way:** the watchlist's manual **Refresh all**
 re-grades tickers back to back with no pause. Finnhub allows 60 calls/min and
 each ticker costs 4, so a watchlist of more than ~15 stocks would start getting
@@ -492,6 +513,10 @@ largely exists.
 - [ ] Choose an email provider (free tier, low volume)
 - [ ] Add the alert opt-in to the settings menu from item 8
 - [ ] Detect upgrade/downgrade during the scheduled refresh
+- [ ] **Only alert on a change that lasts.** On 7–9 October 2026 grades flipped
+      for three days on unstable data (see item 2's follow-up). Alerting on
+      every daily change would have sent dozens of false emails; waiting for a
+      grade to hold for a second day before emailing filters that out.
 - [ ] Send on change only — never on an unchanged grade
 - [ ] Include an unsubscribe link
 - [ ] Rate-limit so one bad refresh can't spam a user
