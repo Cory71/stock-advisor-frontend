@@ -1,15 +1,33 @@
 // Shared top navigation bar.
 // Shows different links depending on whether a user is logged in (via AuthContext).
+//
+// Signed in, everything personal sits in one menu under the user's name:
+// dark mode, account settings and log out. Logged out there's no account menu,
+// so the dark-mode toggle stays inline in the bar.
 
-import { Navbar, Nav, Container, Form } from 'react-bootstrap';
+import { Navbar, Nav, NavDropdown, Container, Form } from 'react-bootstrap';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import './NavBar.css';
 
+// The dark-mode switch, used both in the account menu and in the logged-out bar.
+function ThemeSwitch({ id, className }) {
+  const { theme, toggleTheme } = useTheme();
+  return (
+    <Form.Check
+      type="switch"
+      id={id}
+      label="Dark mode"
+      checked={theme === 'dark'}
+      onChange={toggleTheme}
+      className={className}
+    />
+  );
+}
+
 function NavBar() {
   const { user, logout } = useAuth();
-  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   // Clear the JWT + user, then send the visitor back to the login page.
@@ -28,56 +46,38 @@ function NavBar() {
 
         <Navbar.Collapse id="main-nav">
           {user ? (
-            // Responsive ordering: on desktop the bar reads
-            //   [Home Watchlist Compare] ........ [Welcome  Dark  Log out]
-            // On mobile (collapsed column) the order-lg-* classes drop away, so
-            // it stacks in DOM order: greeting header, page links, divider,
-            // then settings + sign out (see NavBar.css).
             <>
-              {/* Greeting — a small header on top for mobile; sits on the right on
-                  desktop. me-lg-3 adds a gap before the Dark toggle (desktop only). */}
-              <Navbar.Text className="nav-greeting order-lg-2 me-lg-3">
-                Welcome, {user.displayName || user.email}
-              </Navbar.Text>
-
-              {/* Main pages */}
-              <Nav className="nav-links me-lg-auto order-lg-first">
+              {/* Main pages, on the left */}
+              <Nav className="me-auto">
                 <Nav.Link as={Link} to="/">Home</Nav.Link>
                 <Nav.Link as={Link} to="/watchlist">Watchlist</Nav.Link>
                 <Nav.Link as={Link} to="/compare">Compare</Nav.Link>
               </Nav>
 
-              {/* Settings + sign out */}
-              <Nav className="nav-controls order-lg-3 align-items-lg-center">
-                <Form.Check
-                  type="switch"
-                  id="theme-toggle"
-                  label="Dark"
-                  checked={theme === 'dark'}
-                  onChange={toggleTheme}
-                  className="text-light me-3"
-                />
-                <Nav.Link
-                  onClick={handleLogout}
-                  role="button"
-                  style={{ cursor: 'pointer' }}
+              {/* Account menu, on the right. On phones it opens in place inside
+                  the collapsed menu, under a divider (see NavBar.css). */}
+              <Nav className="nav-account">
+                <NavDropdown
+                  title={user.displayName || user.email}
+                  id="account-menu"
+                  align="end"
                 >
-                  Log out
-                </Nav.Link>
+                  {/* A switch rather than a link, so it sits in the menu as plain
+                      content and flipping it doesn't close the menu. */}
+                  <div className="px-3 py-1">
+                    <ThemeSwitch id="theme-toggle-menu" />
+                  </div>
+                  <NavDropdown.Divider />
+                  <NavDropdown.Item as={Link} to="/account">Account settings</NavDropdown.Item>
+                  <NavDropdown.Item as="button" onClick={handleLogout}>Log out</NavDropdown.Item>
+                </NavDropdown>
               </Nav>
             </>
           ) : (
             /* Logged out: theme toggle + auth links. Right + centered on
                desktop; left-aligned on mobile. */
             <Nav className="ms-auto align-items-lg-center">
-              <Form.Check
-                type="switch"
-                id="theme-toggle"
-                label="Dark"
-                checked={theme === 'dark'}
-                onChange={toggleTheme}
-                className="text-light me-3"
-              />
+              <ThemeSwitch id="theme-toggle" className="text-light me-3" />
               <Nav.Link as={Link} to="/login">Log in</Nav.Link>
               <Nav.Link as={Link} to="/signup">Sign up</Nav.Link>
             </Nav>

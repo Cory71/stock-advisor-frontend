@@ -51,7 +51,13 @@ export function AuthProvider({ children }) {
     setUser(null);
   }
 
-  const value = { user, token, login, logout, loading };
+  // Called by the Account page after a change (e.g. a new display name) so the
+  // navbar shows it straight away, without logging in again.
+  function updateUser(updatedUser) {
+    setUser(updatedUser);
+  }
+
+  const value = { user, token, login, logout, updateUser, loading };
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

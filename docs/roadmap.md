@@ -452,7 +452,7 @@ models and a stock's sector standing.
 
 ---
 
-## 8. Account settings menu
+## 8. Account settings menu ✅
 
 An **Options** dropdown in the navbar gathering the controls that belong to the
 person rather than to a stock — starting with the dark-mode toggle that already
@@ -462,14 +462,38 @@ Sits before email alerts on purpose: alerts need a per-user opt-in stored
 somewhere, and this is the screen that owns it. Building alerts first would mean
 inventing a settings surface anyway.
 
-- [ ] Options dropdown in the navbar, replacing the inline Dark toggle
-- [ ] Move the dark-mode toggle into it (see the discoverability note below)
-- [ ] **Delete my account** — with a real confirmation step
-- [ ] Cascade the delete: `User`, `SearchHistory`, `WatchlistItem`
-- [ ] Export my data — watchlist and search history as JSON
-- [ ] Clear search history — one action, keeps the account
-- [ ] Change display name (the field exists; only settable at signup today)
-- [ ] `DELETE /api/auth/me` + tests; confirm a deleted user's token stops working
+- [x] Options dropdown in the navbar, replacing the inline Dark toggle — the
+      menu sits under the user's name and replaces the old "Welcome, …" text
+- [x] Move the dark-mode toggle into it (see the discoverability note below)
+- [x] **Delete my account** — with a real confirmation step
+- [x] Cascade the delete: `User`, `SearchHistory`, `WatchlistItem`
+- [x] Export my data — watchlist and search history as JSON
+- [x] Clear search history — one action, keeps the account
+- [x] Change display name (the field exists; only settable at signup today)
+- [x] `DELETE /api/auth/me` + tests; confirm a deleted user's token stops working
+
+**What was built.** The menu holds Dark mode, **Account settings** and Log out.
+The actions live on a new `/account` page rather than in the menu itself, so
+the delete has room to explain itself. New endpoints are `PATCH /api/auth/me`
+(display name), `GET /api/auth/me/export` and `DELETE /api/auth/me` (both in
+`routes/auth.js`, helpers in `lib/account.js`), and `DELETE /api/history`.
+
+**Decisions.**
+
+- *Dark toggle:* moved into the menu for signed-in users. Logged-out visitors
+  have no menu, so they keep the inline switch. Flipping it inside the menu
+  leaves the menu open.
+- *Delete confirmation:* type the account email. The button stays disabled until
+  it matches, and the server checks again (case and spaces ignored). This works
+  the same way for Google and password accounts.
+- *Clear history:* a second click ("Yes, clear it") confirms it.
+- *Export:* never includes `passwordHash`. It records which sign-in methods the
+  account has instead.
+
+Tests: 13 backend tests (suite **167**) and 14 frontend tests (suite **97**).
+Checked by hand in the browser at desktop and phone widths, including a real
+signup → rename → export → clear → delete run. Logging back in afterwards was
+refused.
 
 ### Things to get right
 

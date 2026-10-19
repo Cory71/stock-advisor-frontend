@@ -13,6 +13,7 @@ import Watchlist from './pages/Watchlist';
 import Compare from './pages/Compare';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import Account from './pages/Account';
 import './App.css';
 
 // Pulled at build time from .env (VITE_GOOGLE_CLIENT_ID). If it's missing,
@@ -41,6 +42,7 @@ function App() {
                 <Route path="/compare" element={<Compare />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />
+                <Route path="/account" element={<Account />} />
               </Routes>
             </main>
 

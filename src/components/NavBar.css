@@ -1,18 +1,11 @@
 /* Mobile (collapsed) navbar polish.
-   Below the `lg` breakpoint the navbar stacks into a vertical column. The menu
-   then reads top-to-bottom: a "Welcome, …" header, the page links, a divider,
-   then the settings + sign-out controls. Above `lg` the navbar is a normal
-   horizontal bar (page links left, account controls right) and these rules
-   don't apply. */
+   Below the `lg` breakpoint the navbar stacks into a vertical column: the page
+   links, a divider, then the account menu (which opens in place). Above `lg`
+   the navbar is a normal horizontal bar — page links left, account menu right —
+   and these rules don't apply. */
 @media (max-width: 991.98px) {
-  /* Greeting acts as a small header at the top of the menu. */
-  .nav-greeting {
-    padding-bottom: 0.25rem;
-    opacity: 0.85;
-  }
-
-  /* Divider separating the page links from the settings/sign-out group. */
-  .nav-controls {
+  /* Divider separating the page links from the account menu. */
+  .nav-account {
     border-top: 1px solid rgba(255, 255, 255, 0.15);
     margin-top: 0.5rem;
     padding-top: 0.5rem;
