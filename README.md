@@ -127,7 +127,7 @@ Same suite but re-runs whenever a file changes — handy during development.
 
 ## Usage
 
-1. **Sign up or log in** — create an account with email + password, or use **Sign in with Google**. Grading requires an account.
+1. **Sign up or log in (optional for grading)** — anyone can grade a stock without an account. Create one with email + password, or use **Sign in with Google**, to keep a watchlist, search history, and compare stocks.
 2. **Grade a stock** — on the Home page, type a **ticker** (e.g. `AAPL`) or a **company name** (e.g. `Apple`, `Google`) and press **Get grade**. You'll see a letter grade A–F, the five pass/fail criteria with the actual numbers, the share price, and when it was last graded.
 3. **Refresh** — grades are cached for 24 hours; click **Refresh** on a stock's page to pull fresh data on demand.
 4. **Build a watchlist** — add tickers to track them. Each row shows the grade when you added it vs. the current grade (▲ upgraded / ▼ downgraded), and **Refresh all** re-grades every row at once.

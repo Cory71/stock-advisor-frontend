@@ -1,6 +1,9 @@
 // Grade Detail page — fetches a graded result for the ticker in the URL,
 // shows the letter grade as a big card, lists the 5 criteria with the actual
 // numbers, and lets the user add the ticker to their watchlist.
+//
+// Works without logging in: anyone can see a grade. Saving to a watchlist and
+// forcing a fresh re-grade need an account, so guests get a log-in link instead.
 
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { useParams, Link } from 'react-router-dom';
@@ -9,6 +12,7 @@ import { apiFetch } from '../lib/apiFetch';
 import { useAuth } from '../context/AuthContext';
 import { useAutoDismiss } from '../lib/useAutoDismiss';
 import { usePageTitle } from '../lib/usePageTitle';
+import { useSlowNotice } from '../lib/useSlowNotice';
 import GradeScaleCard from '../components/GradeScaleCard';
 import SectorComparison from '../components/SectorComparison';
 import { isBankModel, BANK_MODEL_NOTE, describeCriterion } from '../lib/gradeModel';
@@ -50,7 +54,7 @@ function passBadge(passed) {
 function GradeDetail() {
   const { ticker } = useParams();
   const upper = ticker?.toUpperCase();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
   const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(true);
@@ -68,6 +72,9 @@ function GradeDetail() {
 
   // Banner auto-dismisses after 5s so the user doesn't have to click the X.
   useAutoDismiss(addInfo, setAddInfo);
+
+  // True when grading is taking long enough that the server is probably waking up.
+  const slow = useSlowNotice(loading);
 
   // Tab title shows the canonical ticker once data loads; falls back to the
   // URL fragment while the request is in flight (e.g. "MICROSOFT" briefly
@@ -143,40 +150,28 @@ function GradeDetail() {
     }
   }
 
-  // Loading state
+  // Loading state. After a few seconds, explain that the server may be waking
+  // up, so a first-time visitor doesn't think the page is stuck.
   if (loading) {
     return (
       <div>
         <h1>{upper}</h1>
         <p>
-          <Spinner animation="border" size="sm" className="me-2" />
+          {/* as="span": a <div> spinner isn't allowed inside a <p>. */}
+          <Spinner as="span" animation="border" size="sm" className="me-2" />
           Grading {upper}…
         </p>
+        {slow && (
+          <Alert variant="info">
+            Waking up the server — this can take up to a minute on the first visit…
+          </Alert>
+        )}
       </div>
     );
   }
 
-  // Error state — not logged in: show a friendly prompt instead of the raw
-  // "Missing or invalid token" backend message. The giant ticker heading is
-  // hidden because we can't actually grade it yet.
-  if (error && !user) {
-    return (
-      <div>
-        <Alert variant="info">
-          <Alert.Heading className="h5">Please log in to grade stocks</Alert.Heading>
-          <p className="mb-3">
-            Grading is only available to signed-in users. It's free and takes a few seconds.
-          </p>
-          <div className="d-flex gap-2">
-            <Link to="/login" className="btn btn-primary btn-sm">Log in</Link>
-            <Link to="/signup" className="btn btn-outline-primary btn-sm">Sign up</Link>
-          </div>
-        </Alert>
-      </div>
-    );
-  }
-
-  // Error state — logged in but something else went wrong (e.g. stock not found).
+  // Error state — something went wrong (e.g. stock not found, or too many
+  // lookups as a guest). The backend's message is written for people.
   if (error) {
     return (
       <div>
@@ -202,13 +197,30 @@ function GradeDetail() {
           </div>
           {data.name && <p className="text-muted mb-0">{data.name}</p>}
         </div>
-        <div className="d-flex gap-2">
-          <Button onClick={handleDownloadPdf} disabled={downloading} variant="outline-secondary">
-            {downloading ? 'Preparing…' : 'Download PDF'}
-          </Button>
-          <Button onClick={handleAddToWatchlist} disabled={adding} variant="outline-primary">
-            {adding ? 'Adding…' : 'Add to watchlist'}
-          </Button>
+        <div className="text-lg-end">
+          {/* flex-wrap: on narrow phones the buttons stack rather than squash. */}
+          <div className="d-flex flex-wrap gap-2 justify-content-lg-end">
+            <Button onClick={handleDownloadPdf} disabled={downloading} variant="outline-secondary">
+              {downloading ? 'Preparing…' : 'Download PDF'}
+            </Button>
+            {/* Saving needs an account, so guests get a log-in link instead.
+                Nothing shows until we know whether someone is logged in. */}
+            {!authLoading && (user ? (
+              <Button onClick={handleAddToWatchlist} disabled={adding} variant="outline-primary">
+                {adding ? 'Adding…' : 'Add to watchlist'}
+              </Button>
+            ) : (
+              <Link to="/login" className="btn btn-outline-primary">
+                Log in to save to your watchlist
+              </Link>
+            ))}
+          </div>
+          {/* Tells guests the app does more than this one page. */}
+          {!authLoading && !user && (
+            <p className="text-muted small mb-0 mt-1">
+              Free account: watchlist, search history, compare stocks
+            </p>
+          )}
         </div>
       </div>
 
@@ -284,22 +296,26 @@ function GradeDetail() {
       {data.gradedAt && (
         <div className="d-flex align-items-center gap-2 text-muted small mt-2">
           <span>Last graded: {new Date(data.gradedAt).toLocaleString()}</span>
-          <Button
-            variant="link"
-            size="sm"
-            className="p-0 align-baseline text-decoration-none"
-            onClick={handleRefresh}
-            disabled={refreshing}
-          >
-            {refreshing ? (
-              <>
-                <Spinner as="span" animation="border" size="sm" className="me-1" />
-                Refreshing…
-              </>
-            ) : (
-              'Refresh'
-            )}
-          </Button>
+          {/* Forcing a fresh re-grade is for signed-in users — the server
+              ignores it for guests, so the link would do nothing for them. */}
+          {user && (
+            <Button
+              variant="link"
+              size="sm"
+              className="p-0 align-baseline text-decoration-none"
+              onClick={handleRefresh}
+              disabled={refreshing}
+            >
+              {refreshing ? (
+                <>
+                  <Spinner as="span" animation="border" size="sm" className="me-1" />
+                  Refreshing…
+                </>
+              ) : (
+                'Refresh'
+              )}
+            </Button>
+          )}
         </div>
       )}
 
